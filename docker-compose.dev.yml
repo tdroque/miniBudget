@@ -1,0 +1,27 @@
+# Adds a live-reloading Vite dev server as a separate service, so it doesn't
+# touch or replace the production "frontend" (nginx) service defined in
+# docker-compose.yml.
+#
+# Usage (from the project root):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up backend frontend-dev
+#
+# Then open http://localhost:5173 — source under frontend/src is bind-mounted
+# in, so edits hot-reload immediately. Stop with Ctrl+C.
+
+services:
+  frontend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      - VITE_PROXY_TARGET=http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - frontend-dev-node-modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  frontend-dev-node-modules:

@@ -1,0 +1,229 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.section-header .section-title {
+  margin-bottom: 0;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.select-filter {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+
+/* Balance bar (signature element) */
+.balance-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.balance-bar__labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+}
+.balance-bar__labels > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.align-right {
+  flex-direction: row-reverse;
+}
+.balance-bar__label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+.balance-bar__amount {
+  font-size: 16px;
+  font-weight: 600;
+}
+.balance-bar__amount--income {
+  color: var(--income);
+}
+.balance-bar__amount--expense {
+  color: var(--expense);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot--income {
+  background: var(--income);
+}
+.dot--expense {
+  background: var(--expense);
+}
+
+.balance-bar__track {
+  position: relative;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.balance-bar__income-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--income-dim);
+  border-right: 1px dashed rgba(62, 214, 142, 0.5);
+}
+.balance-bar__expense-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--expense);
+  opacity: 0.85;
+  transition: width 0.3s ease;
+}
+.balance-bar__overflow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(234, 90, 95, 0.9),
+    rgba(234, 90, 95, 0.9) 4px,
+    rgba(234, 90, 95, 0.55) 4px,
+    rgba(234, 90, 95, 0.55) 8px
+  );
+}
+.balance-bar__marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--income);
+  transform: translateX(-1px);
+}
+
+.balance-bar__ruler {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1px;
+}
+.balance-bar__ruler span {
+  width: 1px;
+  height: 5px;
+  background: var(--border);
+}
+
+.balance-bar__net {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.balance-bar__net.is-positive {
+  background: var(--income-dim);
+  border-color: rgba(62, 214, 142, 0.3);
+}
+.balance-bar__net.is-negative {
+  background: var(--expense-dim);
+  border-color: rgba(234, 90, 95, 0.3);
+}
+.balance-bar__net-stamp {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transform: rotate(-2deg);
+}
+.is-positive .balance-bar__net-stamp {
+  color: var(--income);
+}
+.is-negative .balance-bar__net-stamp {
+  color: var(--expense);
+}
+.balance-bar__net-amount {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Category breakdown */
+.cat-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cat-row__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.cat-row__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.cat-row__track {
+  height: 8px;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.cat-row__fill {
+  height: 100%;
+  border-radius: 6px;
+}
+.cat-row__fill--income {
+  background: var(--income);
+}
+.cat-row__fill--expense {
+  background: var(--expense);
+}
+
+.tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.tag--income {
+  color: var(--income);
+  background: var(--income-dim);
+}
+.tag--expense {
+  color: var(--expense);
+  background: var(--expense-dim);
+}
