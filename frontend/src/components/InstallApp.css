@@ -1,0 +1,19 @@
+.install-hint {
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.install-hint:last-child {
+  margin-bottom: 0;
+}
+.install-hint strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.install-status {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.install-status--done {
+  color: var(--income);
+}

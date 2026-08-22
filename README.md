@@ -1,4 +1,4 @@
-# Ledger — a simple spend tracker
+# Mini Budget — a simple spend tracker
 
 A mobile-first, single-user spend tracker. React frontend, Go backend, SQLite storage. Track one-off income/expenses and recurring items (paycheque, rent), and see a breakdown by month, year, or custom date range.
 
@@ -63,9 +63,13 @@ DB_PATH=./spend.db go run .
 # listens on :8080
 ```
 
-## Installing on iOS (PWA)
+## Installing as an app (PWA)
 
-Ledger is an installable Progressive Web App. Once it's deployed somewhere reachable from your phone (see **Run it** above — `docker compose up` and open the site on your phone over the same network, or deploy it somewhere with a real URL):
+Mini Budget is an installable Progressive Web App — it works the same everywhere, but how you install it differs by platform.
+
+### iOS (Safari)
+
+Once it's deployed somewhere reachable from your phone (see **Run it** above — `docker compose up` and open the site on your phone over the same network, or deploy it somewhere with a real URL):
 
 1. Open the site in **Safari** on iOS (it must be Safari — Chrome/Firefox on iOS can't install PWAs, since they're all really Safari under the hood but Apple only exposes this to Safari itself).
 2. Tap the **Share** icon (square with an arrow) in the toolbar.
@@ -74,11 +78,23 @@ Ledger is an installable Progressive Web App. Once it's deployed somewhere reach
 
 It now launches full-screen from your home screen like a native app, with its own icon, no Safari address bar, and works offline (see below). A few iOS-specific realities worth knowing:
 
-- **No Background Sync / Push.** iOS doesn't support the Background Sync API, so pending changes don't sync silently in the background the way they might on Android. Ledger works around this by syncing whenever the app is open and online (checking on launch, on the `online` event, and every 20 seconds as a fallback, since iOS doesn't always fire that event reliably) — so just opening the app while connected is enough.
+- **No Background Sync / Push.** iOS doesn't support the Background Sync API, so pending changes don't sync silently in the background. Mini Budget works around this the same way on every platform, not just iOS: it syncs whenever the app is open and online (checking on launch, on the `online` event, and every 20 seconds as a fallback, since iOS doesn't always fire that event reliably) — so just opening the app while connected is enough.
 - **Storage isn't permanent.** iOS Safari can evict a PWA's local storage (including the offline cache) if the app goes unused for a long time or the device is low on space. Your data always lives safely in the backend's SQLite database regardless — the offline cache is just a convenience copy for when you're offline, not the source of truth.
 - **HTTPS in production.** Service workers require a "secure context." `localhost` and plain HTTP over a local network (e.g. `http://192.168.x.x:8081` while testing on your home Wi-Fi) both count, but a real public deployment needs HTTPS — put it behind a reverse proxy with TLS (Caddy, nginx + certbot, Cloudflare Tunnel, Tailscale, etc.) if you're exposing it beyond your LAN.
 
-Android and desktop Chrome/Edge support the same "Install app" flow from the browser menu, with fuller PWA support (including background sync) if you'd rather use it there.
+### Desktop (Chrome / Edge)
+
+1. Open the site in Chrome or Edge.
+2. Either click the **install icon** in the address bar (⊕ or a small monitor icon, right-hand side), or open the browser menu (⋮) and choose **Install Mini Budget…**.
+3. Confirm in the dialog that appears.
+
+It opens in its own window — no tabs, no address bar — with an icon in your dock/taskbar, and works offline the same way it does everywhere else. There's also an **Install app** button inside the app itself (Settings tab, top of the page): it uses the browser's native `beforeinstallprompt` API, so it only appears once Chrome/Edge decide the install criteria are met, and it's just a shortcut to the same dialog — it doesn't do anything the browser's own install icon can't.
+
+Once installed, right-click the taskbar/dock icon for two shortcuts straight into the app: **Add entry** and **Overview**.
+
+### Android
+
+Chrome on Android shows the same install prompt as desktop Chrome (an "Install app" banner or a menu item), and Mini Budget's "Install app" button in Settings works there too.
 
 ## Offline sync
 
@@ -94,7 +110,7 @@ The app works with no connection at all — not just "read-only cached data," bu
 
 The Settings tab has a dedicated panel for this:
 
-- **Offline mode switch** — forces the app to behave as if there's no connection, regardless of what the device actually has. Flip it on before a flight, to test the offline flow, or just to keep everything queued locally on purpose. Flip it off and Ledger immediately re-checks the server and flushes anything queued.
+- **Offline mode switch** — forces the app to behave as if there's no connection, regardless of what the device actually has. Flip it on before a flight, to test the offline flow, or just to keep everything queued locally on purpose. Flip it off and Mini Budget immediately re-checks the server and flushes anything queued.
 - **Device network** — the browser's raw connectivity signal (`navigator.onLine`).
 - **App mode** — "Live" or "Forced offline," reflecting the switch above.
 - **Server** — an active ping to `GET /api/health`, distinct from device network: your phone can have Wi-Fi (device "Online") while the backend itself is down or unreachable, and this is what actually tells you that.
@@ -104,7 +120,7 @@ The Settings tab has a dedicated panel for this:
 
 **Known limits:**
 - **Receipt photos require a connection.** Queuing an offline file upload (and reconciling it against a transaction that might itself still be un-synced) adds a lot of complexity for what's already an optional feature. Attaching a receipt while offline (including with the manual toggle on) shows a clear "you're offline" message instead of silently failing later.
-- **Single device at a time, effectively.** If you use Ledger on two devices and both go offline and edit the *same* entry before either reconnects, the last one to sync wins — there's no conflict merging. For a single-user app used from one phone, this basically never comes up in practice, but it's worth knowing if you install it on multiple devices.
+- **Single device at a time, effectively.** If you use Mini Budget on two devices and both go offline and edit the *same* entry before either reconnects, the last one to sync wins — there's no conflict merging. For a single-user app used from one phone, this basically never comes up in practice, but it's worth knowing if you install it on multiple devices.
 
 ## How it works
 
@@ -113,7 +129,7 @@ The Settings tab has a dedicated panel for this:
 - The **Overview** tab shows a single balance bar for the selected period: the track represents your income, the red fill shows how much of it you've spent, and a hatched overflow shows spending that exceeds income. Below it, a per-category breakdown for the same period.
 - The **Entries** tab lists every one-off and recurring occurrence in the selected period, filterable by category, with inline edit/delete for one-off entries (recurring items are managed from the Recurring tab, since editing one changes every future occurrence).
 - The **Recurring** tab manages your recurring income and expense templates.
-- The **Settings** tab manages the category list (add/delete, saved to the database). Categories are split by income/expense; the entry form only offers categories that match the type you're logging. Deleting a category only removes it from the picker — past entries keep whatever category they already had.
+- The **Settings** tab has three things: an install-as-app card (see **Installing as an app** above), the offline & sync panel (see **Offline sync** below), and the category list (add/delete, saved to the database). Categories are split by income/expense; the entry form only offers categories that match the type you're logging. Deleting a category only removes it from the picker — past entries keep whatever category they already had.
 - Pick **Month**, **Year**, or **Custom** range at the top of any tab — it drives every view.
 
 ### Receipts

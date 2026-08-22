@@ -103,7 +103,7 @@ export default function OfflineSyncSettings() {
         <div className="switch-row__text">
           <span className="switch-row__label">Offline mode</span>
           <span className="switch-row__hint">
-            Force Ledger to act as if there's no connection — everything queues locally instead of hitting the
+            Force Mini Budget to act as if there's no connection — everything queues locally instead of hitting the
             server. Useful for flights, testing, or just knowing your changes are safe either way.
           </span>
         </div>

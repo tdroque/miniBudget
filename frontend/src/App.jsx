@@ -14,7 +14,11 @@ import "./App.css";
 const today = new Date();
 
 export default function App() {
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    return ["dashboard", "transactions", "recurring", "settings"].includes(requested) ? requested : "dashboard";
+  });
 
   const [periodMode, setPeriodMode] = useState("month"); // month | year | custom
   const [year, setYear] = useState(today.getFullYear());
@@ -74,6 +78,19 @@ export default function App() {
     api.bootstrapOfflineCache().catch(() => {});
   }, []);
 
+  // Desktop PWA shortcuts (right-click the taskbar/dock icon) land here via
+  // query params — see the `shortcuts` entries in vite.config.js.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "add") {
+      setEditingEntry(null);
+      setFormOpen(true);
+    }
+    if (params.has("action") || params.has("tab")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   // Names used for "filter by category" dropdowns — the union of
   // Settings-managed categories and anything already logged (so old
   // entries with a since-deleted category still filter correctly).
@@ -129,8 +146,8 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="app-header__brand">
-          <span className="app-header__mark">L</span>
-          <h1>Ledger</h1>
+          <span className="app-header__mark">M</span>
+          <h1>Mini Budget</h1>
           <SyncStatus onSynced={refresh} />
         </div>
         <button className="btn btn--stamp" onClick={openAdd}>

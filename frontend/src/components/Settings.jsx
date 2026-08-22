@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import InstallApp from "./InstallApp.jsx";
 import OfflineSyncSettings from "./OfflineSyncSettings.jsx";
 import "./Settings.css";
 
@@ -72,6 +73,7 @@ export default function Settings({ categories, onChanged }) {
 
   return (
     <div className="settings">
+      <InstallApp />
       <OfflineSyncSettings />
 
       <section className="card">

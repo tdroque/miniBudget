@@ -10,18 +10,39 @@ export default defineConfig({
       injectRegister: "auto",
       includeAssets: ["favicon-32.png", "apple-touch-icon.png"],
       manifest: {
-        name: "Ledger — Spend Tracker",
-        short_name: "Ledger",
+        id: "/",
+        name: "Mini Budget — Spend Tracker",
+        short_name: "Mini Budget",
         description: "A simple, single-user spend tracker.",
         start_url: "/",
         scope: "/",
         display: "standalone",
         background_color: "#131419",
         theme_color: "#131419",
+        categories: ["finance", "productivity"],
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           { src: "/icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+        // Right-click the taskbar/dock icon (desktop Chrome/Edge) to jump
+        // straight into these — App.jsx reads the matching query param on
+        // load and acts on it.
+        shortcuts: [
+          {
+            name: "Add entry",
+            short_name: "Add entry",
+            description: "Log a new income or expense",
+            url: "/?action=add",
+            icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Overview",
+            short_name: "Overview",
+            description: "Open the balance overview",
+            url: "/?tab=dashboard",
+            icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+          },
         ],
       },
       workbox: {
