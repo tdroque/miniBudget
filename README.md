@@ -90,8 +90,20 @@ The app works with no connection at all — not just "read-only cached data," bu
 - A small pill in the header shows **Offline** or **Syncing N changes…** whenever there's something to report; it disappears once everything's synced.
 - When the connection comes back, queued changes replay against the real API in order, and temporary IDs are swapped for the real ones the server assigns.
 
+### Settings → Offline & sync
+
+The Settings tab has a dedicated panel for this:
+
+- **Offline mode switch** — forces the app to behave as if there's no connection, regardless of what the device actually has. Flip it on before a flight, to test the offline flow, or just to keep everything queued locally on purpose. Flip it off and Ledger immediately re-checks the server and flushes anything queued.
+- **Device network** — the browser's raw connectivity signal (`navigator.onLine`).
+- **App mode** — "Live" or "Forced offline," reflecting the switch above.
+- **Server** — an active ping to `GET /api/health`, distinct from device network: your phone can have Wi-Fi (device "Online") while the backend itself is down or unreachable, and this is what actually tells you that.
+- **Sync status** — how many changes are queued and waiting, or confirmation everything's synced, plus a manual **Sync now** button.
+- **Connection errors** — if the last attempt to reach the server failed, the message is shown here (dismissible).
+- **Sync issues** — a log of mutations the server actively rejected (not connectivity failures — a validation error, a 404, etc.). These can't succeed as-is so they're not retried automatically, but they're kept visible here rather than silently disappearing, along with what was rejected and why. Dismissible once you've seen them.
+
 **Known limits:**
-- **Receipt photos require a connection.** Queuing an offline file upload (and reconciling it against a transaction that might itself still be un-synced) adds a lot of complexity for what's already an optional feature. Attaching a receipt while offline shows a clear "you're offline" message instead of silently failing later.
+- **Receipt photos require a connection.** Queuing an offline file upload (and reconciling it against a transaction that might itself still be un-synced) adds a lot of complexity for what's already an optional feature. Attaching a receipt while offline (including with the manual toggle on) shows a clear "you're offline" message instead of silently failing later.
 - **Single device at a time, effectively.** If you use Ledger on two devices and both go offline and edit the *same* entry before either reconnects, the last one to sync wins — there's no conflict merging. For a single-user app used from one phone, this basically never comes up in practice, but it's worth knowing if you install it on multiple devices.
 
 ## How it works
@@ -132,6 +144,7 @@ All endpoints are under `/api`:
 | DELETE | `/recurring/:id` | Delete a recurring template |
 | GET | `/summary?start=&end=` | Income/expense/net totals + category breakdown for range |
 | GET | `/sync` | Full raw snapshot (all transactions, recurring items, categories) — used to seed the offline cache |
+| GET | `/health` | Basic liveness check — used by the Settings "Server" status ping |
 | GET | `/categories?type=` | List categories, optionally filtered to `income` or `expense` |
 | POST | `/categories` | Create a category (`{name, type}`) |
 | DELETE | `/categories/:id` | Delete a category |

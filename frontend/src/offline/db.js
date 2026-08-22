@@ -1,6 +1,6 @@
 const DB_NAME = "ledger-offline";
-const DB_VERSION = 1;
-const STORES = ["transactions", "recurring", "categories", "queue", "meta"];
+const DB_VERSION = 2;
+const STORES = ["transactions", "recurring", "categories", "queue", "meta", "failures"];
 
 let dbPromise = null;
 
@@ -19,6 +19,7 @@ function openDB() {
       if (!db.objectStoreNames.contains("categories")) db.createObjectStore("categories", { keyPath: "id" });
       if (!db.objectStoreNames.contains("queue")) db.createObjectStore("queue", { keyPath: "queueId", autoIncrement: true });
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("failures")) db.createObjectStore("failures", { keyPath: "id", autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

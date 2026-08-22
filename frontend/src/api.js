@@ -1,9 +1,13 @@
 import { API_BASE, API_ORIGIN } from "./config.js";
 import * as offline from "./offline/syncEngine.js";
+import * as prefs from "./offline/preferences.js";
 
 export const BASE = API_BASE;
 
 async function request(path, options = {}) {
+  if (!prefs.effectiveOnline()) {
+    throw new TypeError("Offline mode is enabled");
+  }
   const isForm = options.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
     ...options,
@@ -102,7 +106,7 @@ export const api = {
   // Receipts require a live connection — offline photo queueing isn't
   // supported (see offline/syncEngine.js header comment for why).
   uploadReceipt: (transactionId, file) => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    if (!prefs.effectiveOnline()) {
       return Promise.reject(new Error("You're offline — receipts need a connection. Try again once you're back online."));
     }
     const form = new FormData();
@@ -110,7 +114,7 @@ export const api = {
     return request(`/transactions/${transactionId}/receipt`, { method: "POST", body: form });
   },
   deleteReceipt: (transactionId) => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    if (!prefs.effectiveOnline()) {
       return Promise.reject(new Error("You're offline — try again once you're back online."));
     }
     return request(`/transactions/${transactionId}/receipt`, { method: "DELETE" });
@@ -123,4 +127,16 @@ export const api = {
   flushOfflineQueue: () => offline.flushQueue(),
   getPendingSyncCount: () => offline.getPendingCount(),
   subscribeSyncStatus: (cb) => offline.subscribe(cb),
+
+  // Manual "force offline" toggle (Settings tab).
+  isOfflineModeForced: () => prefs.isForcedOffline(),
+  setOfflineModeForced: (value) => prefs.setForcedOffline(value),
+  subscribeOfflineModePreference: (cb) => prefs.subscribe(cb),
+
+  // Connection + sync diagnostics (Settings tab).
+  checkServerReachable: () => offline.checkServerReachable(),
+  getLastConnectionError: () => offline.getLastConnectionError(),
+  clearLastConnectionError: () => offline.clearLastConnectionError(),
+  getFailedSyncOps: () => offline.getFailedOps(),
+  clearFailedSyncOps: () => offline.clearFailedOps(),
 };

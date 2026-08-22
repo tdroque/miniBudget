@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import OfflineSyncSettings from "./OfflineSyncSettings.jsx";
 import "./Settings.css";
 
 export default function Settings({ categories, onChanged }) {
@@ -71,6 +72,8 @@ export default function Settings({ categories, onChanged }) {
 
   return (
     <div className="settings">
+      <OfflineSyncSettings />
+
       <section className="card">
         <h2 className="section-title">Categories</h2>
         <p className="text-muted settings-hint">

@@ -18,6 +18,7 @@
 import { API_BASE } from "../config.js";
 import { getAll, put, del, replaceAll } from "./db.js";
 import { occurrencesInRange, parseISO } from "./recurrence.js";
+import { effectiveOnline } from "./preferences.js";
 
 const RESOURCE_PATH = {
   transactions: "/transactions",
@@ -46,11 +47,14 @@ export function subscribe(cb) {
 }
 
 export function isNetworkError(err) {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  if (!effectiveOnline()) return true;
   return err instanceof TypeError;
 }
 
 async function rawJSON(path, options) {
+  if (!effectiveOnline()) {
+    throw new TypeError("Offline — not attempting a network request");
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -82,6 +86,39 @@ export async function bootstrap() {
   ]);
   notify();
   return snapshot;
+}
+
+/**
+ * Actively pings the backend, distinct from navigator.onLine (which only
+ * reflects whether the device has *some* network — the backend could still
+ * be down, unreachable, or blocked). Returns one of:
+ *   "offline"       — forced offline mode or the device reports no network
+ *   "reachable"      — the server responded successfully
+ *   "unreachable"    — the request never got a response (DNS, timeout, CORS)
+ *   "server-error"   — got a response, but it wasn't a healthy one
+ */
+export async function checkServerReachable() {
+  if (!effectiveOnline()) return "offline";
+  try {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 5000) : null;
+    const res = await fetch(`${API_BASE}/health`, { cache: "no-store", signal: controller?.signal });
+    if (timeout) clearTimeout(timeout);
+    return res.ok ? "reachable" : "server-error";
+  } catch {
+    return "unreachable";
+  }
+}
+
+export async function getFailedOps() {
+  const failures = await getAll("failures");
+  return failures.sort((a, b) => (a.failedAt < b.failedAt ? 1 : -1));
+}
+
+export async function clearFailedOps() {
+  const failures = await getAll("failures");
+  await Promise.all(failures.map((f) => del("failures", f.id)));
+  notify();
 }
 
 // ---------- Write-through cache helpers (called on successful online calls) ----------
@@ -172,10 +209,20 @@ export async function deleteOffline(resource, id) {
 // ---------- Flushing the queue against the real API ----------
 
 let flushing = false;
+let lastConnectionError = null;
+
+export function getLastConnectionError() {
+  return lastConnectionError;
+}
+
+export function clearLastConnectionError() {
+  lastConnectionError = null;
+  notify();
+}
 
 export async function flushQueue() {
   if (flushing) return;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  if (!effectiveOnline()) return;
   flushing = true;
   try {
     // eslint-disable-next-line no-constant-condition
@@ -196,18 +243,29 @@ export async function flushQueue() {
         }
       } catch (err) {
         if (isNetworkError(err)) {
+          lastConnectionError = { message: err.message || "Network error", at: new Date().toISOString() };
+          notify();
           break; // offline again — stop, we'll retry later
         }
         // A real server-side rejection (validation, 404, etc). This entry
         // can never succeed as-is; drop it so it doesn't block the queue
         // forever, but keep the local optimistic state as-is so the user
-        // doesn't silently lose what they typed.
+        // doesn't silently lose what they typed. Log it so Settings can
+        // show what happened instead of it vanishing without a trace.
+        await put("failures", {
+          resource: entry.resource,
+          method: entry.method,
+          targetId: entry.targetId,
+          error: err.message || "Sync failed",
+          failedAt: new Date().toISOString(),
+        });
         await del("queue", entry.queueId);
         notify();
         continue;
       }
 
       await del("queue", entry.queueId);
+      lastConnectionError = null;
 
       if (entry.method === "POST" && result) {
         await reconcileTempId(entry.resource, entry.tempId, result);

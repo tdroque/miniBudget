@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import "./SyncStatus.css";
 
 const RETRY_INTERVAL_MS = 20000;
 
+function computeEffectiveOnline() {
+  if (api.isOfflineModeForced()) return false;
+  return typeof navigator === "undefined" ? true : navigator.onLine;
+}
+
 export default function SyncStatus({ onSynced }) {
-  const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [isOnline, setIsOnline] = useState(computeEffectiveOnline);
   const [pending, setPending] = useState(0);
-  const lastPendingRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,6 +22,7 @@ export default function SyncStatus({ onSynced }) {
     }
 
     async function trySync() {
+      if (!computeEffectiveOnline()) return;
       const before = await api.getPendingSyncCount();
       if (before === 0) return;
       await api.flushOfflineQueue();
@@ -29,37 +34,36 @@ export default function SyncStatus({ onSynced }) {
     refreshCount();
     trySync();
 
-    const unsubscribe = api.subscribeSyncStatus(refreshCount);
+    const unsubscribeQueue = api.subscribeSyncStatus(refreshCount);
+    const unsubscribePref = api.subscribeOfflineModePreference(() => {
+      setIsOnline(computeEffectiveOnline());
+      trySync();
+    });
 
     function handleOnline() {
-      setIsOnline(true);
+      setIsOnline(computeEffectiveOnline());
       trySync();
     }
     function handleOffline() {
-      setIsOnline(false);
+      setIsOnline(computeEffectiveOnline());
     }
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
     // iOS Safari (especially installed PWAs) doesn't reliably fire
     // online/offline, so poll as a safety net whenever there's work to do.
-    const interval = setInterval(() => {
-      if (navigator.onLine) trySync();
-    }, RETRY_INTERVAL_MS);
+    const interval = setInterval(trySync, RETRY_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeQueue();
+      unsubscribePref();
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    lastPendingRef.current = pending;
-  }, [pending]);
 
   if (isOnline && pending === 0) return null;
 
