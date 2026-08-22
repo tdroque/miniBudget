@@ -1,5 +1,7 @@
-export const BASE = import.meta.env.VITE_API_URL || "/api";
-const ORIGIN = BASE.replace(/\/api\/?$/, "");
+import { API_BASE, API_ORIGIN } from "./config.js";
+import * as offline from "./offline/syncEngine.js";
+
+export const BASE = API_BASE;
 
 async function request(path, options = {}) {
   const isForm = options.body instanceof FormData;
@@ -21,49 +23,104 @@ async function request(path, options = {}) {
   return res.json();
 }
 
+function isNetworkError(err) {
+  return offline.isNetworkError(err);
+}
+
+// A generic "try the network, fall back to the offline queue" wrapper for
+// create/update/delete. Real validation/server errors (4xx/5xx that made it
+// to the server) are NOT caught here — only genuine connectivity failures
+// fall back to offline mode; everything else surfaces to the UI as before.
+async function mutate(resource, method, { path, body, offlineId }) {
+  try {
+    const result = await request(path, { method, body: body !== undefined ? JSON.stringify(body) : undefined });
+    if (method === "DELETE") {
+      await offline.cacheRemove(resource, offlineId);
+    } else {
+      await offline.cacheUpsert(resource, result);
+    }
+    return result;
+  } catch (err) {
+    if (!isNetworkError(err)) throw err;
+    if (method === "POST") return offline.createOffline(resource, body);
+    if (method === "PUT") return offline.updateOffline(resource, offlineId, body);
+    if (method === "DELETE") return offline.deleteOffline(resource, offlineId);
+    throw err;
+  }
+}
+
 export const api = {
-  getOccurrences: (start, end, category) => {
+  getOccurrences: async (start, end, category) => {
     const params = new URLSearchParams({ start, end });
     if (category) params.set("category", category);
-    return request(`/transactions?${params.toString()}`);
+    try {
+      return await request(`/transactions?${params.toString()}`);
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getOfflineOccurrences(start, end, category);
+    }
   },
-  createTransaction: (data) =>
-    request("/transactions", { method: "POST", body: JSON.stringify(data) }),
+  createTransaction: (data) => mutate("transactions", "POST", { path: "/transactions", body: data }),
   updateTransaction: (id, data) =>
-    request(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteTransaction: (id) =>
-    request(`/transactions/${id}`, { method: "DELETE" }),
+    mutate("transactions", "PUT", { path: `/transactions/${id}`, body: data, offlineId: id }),
+  deleteTransaction: (id) => mutate("transactions", "DELETE", { path: `/transactions/${id}`, offlineId: id }),
 
-  getRecurring: () => request("/recurring"),
-  createRecurring: (data) =>
-    request("/recurring", { method: "POST", body: JSON.stringify(data) }),
-  updateRecurring: (id, data) =>
-    request(`/recurring/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteRecurring: (id) =>
-    request(`/recurring/${id}`, { method: "DELETE" }),
+  getRecurring: async () => {
+    try {
+      return await request("/recurring");
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getOfflineRecurring();
+    }
+  },
+  createRecurring: (data) => mutate("recurring", "POST", { path: "/recurring", body: data }),
+  updateRecurring: (id, data) => mutate("recurring", "PUT", { path: `/recurring/${id}`, body: data, offlineId: id }),
+  deleteRecurring: (id) => mutate("recurring", "DELETE", { path: `/recurring/${id}`, offlineId: id }),
 
-  getSummary: (start, end) => {
+  getSummary: async (start, end) => {
     const params = new URLSearchParams({ start, end });
-    return request(`/summary?${params.toString()}`);
+    try {
+      return await request(`/summary?${params.toString()}`);
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getOfflineSummary(start, end);
+    }
   },
 
   // Categories (managed from Settings)
-  getCategories: (type) => request(`/categories${type ? `?type=${type}` : ""}`),
-  createCategory: (data) =>
-    request("/categories", { method: "POST", body: JSON.stringify(data) }),
-  deleteCategory: (id) => request(`/categories/${id}`, { method: "DELETE" }),
+  getCategories: async (type) => {
+    try {
+      return await request(`/categories${type ? `?type=${type}` : ""}`);
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getOfflineCategories(type);
+    }
+  },
+  createCategory: (data) => mutate("categories", "POST", { path: "/categories", body: data }),
+  deleteCategory: (id) => mutate("categories", "DELETE", { path: `/categories/${id}`, offlineId: id }),
 
-  // Receipts — upload attaches/replaces the image on a one-off transaction
-  // and flips its ocr_status to "pending", ready for a future OCR worker.
+  // Receipts require a live connection — offline photo queueing isn't
+  // supported (see offline/syncEngine.js header comment for why).
   uploadReceipt: (transactionId, file) => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return Promise.reject(new Error("You're offline — receipts need a connection. Try again once you're back online."));
+    }
     const form = new FormData();
     form.append("receipt", file);
     return request(`/transactions/${transactionId}/receipt`, { method: "POST", body: form });
   },
-  deleteReceipt: (transactionId) =>
-    request(`/transactions/${transactionId}/receipt`, { method: "DELETE" }),
+  deleteReceipt: (transactionId) => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return Promise.reject(new Error("You're offline — try again once you're back online."));
+    }
+    return request(`/transactions/${transactionId}/receipt`, { method: "DELETE" });
+  },
 
-  // receipt_path from the API is an absolute path like "/uploads/xyz.jpg";
-  // resolve it against the API origin so it works in dev (proxy) and prod.
-  receiptUrl: (receiptPath) => (receiptPath ? `${ORIGIN}${receiptPath}` : null),
+  receiptUrl: (receiptPath) => (receiptPath ? `${API_ORIGIN}${receiptPath}` : null),
+
+  // Offline sync status, exposed for the UI badge.
+  bootstrapOfflineCache: () => offline.bootstrap(),
+  flushOfflineQueue: () => offline.flushQueue(),
+  getPendingSyncCount: () => offline.getPendingCount(),
+  subscribeSyncStatus: (cb) => offline.subscribe(cb),
 };

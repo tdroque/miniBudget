@@ -71,6 +71,9 @@ func main() {
 	// Summary
 	mux.HandleFunc("GET /api/summary", a.handleSummary)
 
+	// Offline bootstrap snapshot
+	mux.HandleFunc("GET /api/sync", a.handleSync)
+
 	// Uploaded receipt images
 	fileServer := http.FileServer(http.Dir(receiptsDir))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fileServer))

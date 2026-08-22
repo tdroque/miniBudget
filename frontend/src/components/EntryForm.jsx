@@ -73,6 +73,7 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
     if (!category.trim()) return setError("Pick a category — add one in Settings if the list is empty.");
 
     setSaving(true);
+    let saveSucceeded = false;
     try {
       let savedTransactionId = isEditing && !isRecurringEntry ? entry.id : null;
 
@@ -106,18 +107,36 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
             ? await api.updateTransaction(entry.id, payload)
             : await api.createTransaction(payload);
         savedTransactionId = saved.id;
+        saveSucceeded = true;
 
-        if (showReceiptSection && savedTransactionId) {
-          if (receiptFile) {
-            await api.uploadReceipt(savedTransactionId, receiptFile);
-          } else if (removeExistingReceipt && existingReceiptPath) {
-            await api.deleteReceipt(savedTransactionId);
+        // The entry itself is saved (possibly just queued offline) at this
+        // point. A receipt failure — most commonly "you're offline" — is a
+        // separate, non-fatal problem: don't let it hide the fact that the
+        // entry saved, and don't leave the modal open looking like nothing
+        // happened (which would risk a duplicate on resubmit).
+        if (showReceiptSection && savedTransactionId > 0) {
+          try {
+            if (receiptFile) {
+              await api.uploadReceipt(savedTransactionId, receiptFile);
+            } else if (removeExistingReceipt && existingReceiptPath) {
+              await api.deleteReceipt(savedTransactionId);
+            }
+          } catch (receiptErr) {
+            onSaved(receiptErr.message || "Entry saved, but the receipt couldn't be uploaded.");
+            return;
           }
+        } else if (showReceiptSection && savedTransactionId < 0 && (receiptFile || removeExistingReceipt)) {
+          // Offline-created entry — there's no real id to attach a receipt
+          // to yet. Let them know instead of silently dropping the photo.
+          onSaved(
+            "Entry saved and will sync once you're back online — attach the receipt again afterwards, since photos need a live connection."
+          );
+          return;
         }
       }
       onSaved();
     } catch (err) {
-      setError(err.message || "Couldn't save this entry.");
+      if (!saveSucceeded) setError(err.message || "Couldn't save this entry.");
     } finally {
       setSaving(false);
     }

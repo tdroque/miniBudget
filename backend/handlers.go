@@ -669,6 +669,96 @@ func (a *api) handleSummary(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// ---------- Sync (offline bootstrap) ----------
+//
+// The frontend caches this in IndexedDB so the app keeps working — reading
+// and queuing new changes — without a network connection. It intentionally
+// returns raw transactions (not materialized recurring occurrences): the
+// client re-runs the same date-expansion logic locally so it can render any
+// date range offline, not just whatever range happened to be cached.
+
+type syncSnapshot struct {
+	ServerTime   string          `json:"server_time"`
+	Transactions []Transaction   `json:"transactions"`
+	Recurring    []RecurringItem `json:"recurring"`
+	Categories   []Category      `json:"categories"`
+}
+
+func (a *api) handleSync(w http.ResponseWriter, r *http.Request) {
+	txns, err := a.listAllTransactions()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	recs, err := a.listRecurring()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	cats, err := a.listAllCategories()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if txns == nil {
+		txns = []Transaction{}
+	}
+	if recs == nil {
+		recs = []RecurringItem{}
+	}
+	writeJSON(w, http.StatusOK, syncSnapshot{
+		ServerTime:   time.Now().UTC().Format(time.RFC3339),
+		Transactions: txns,
+		Recurring:    recs,
+		Categories:   cats,
+	})
+}
+
+func (a *api) listAllTransactions() ([]Transaction, error) {
+	rows, err := a.db.Query(
+		`SELECT id, name, amount, category, type, date, description, receipt_path, ocr_status, ocr_text, created_at
+		 FROM transactions ORDER BY date DESC, id DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Transaction
+	for rows.Next() {
+		var t Transaction
+		var receiptPath, ocrText sql.NullString
+		if err := rows.Scan(&t.ID, &t.Name, &t.Amount, &t.Category, &t.Type, &t.Date, &t.Description, &receiptPath, &t.OCRStatus, &ocrText, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		if receiptPath.Valid {
+			t.ReceiptPath = &receiptPath.String
+		}
+		if ocrText.Valid {
+			t.OCRText = &ocrText.String
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+func (a *api) listAllCategories() ([]Category, error) {
+	rows, err := a.db.Query(`SELECT id, name, type, created_at FROM categories ORDER BY type, name COLLATE NOCASE`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Category{}
+	for rows.Next() {
+		var c Category
+		if err := rows.Scan(&c.ID, &c.Name, &c.Type, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
 // ---------- Validation ----------
 
 func validateEntry(name string, amount float64, category, typ, date string) error {

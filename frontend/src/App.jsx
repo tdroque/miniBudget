@@ -8,6 +8,7 @@ import TransactionList from "./components/TransactionList.jsx";
 import RecurringList from "./components/RecurringList.jsx";
 import Settings from "./components/Settings.jsx";
 import EntryForm from "./components/EntryForm.jsx";
+import SyncStatus from "./components/SyncStatus.jsx";
 import "./App.css";
 
 const today = new Date();
@@ -28,6 +29,7 @@ export default function App() {
   const [recurring, setRecurring] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -64,6 +66,13 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Warm the offline cache in the background so the app has something to
+  // show if the network drops. Best-effort — if this fails (e.g. we're
+  // already offline on first load), the app just has nothing cached yet.
+  useEffect(() => {
+    api.bootstrapOfflineCache().catch(() => {});
+  }, []);
 
   // Names used for "filter by category" dropdowns — the union of
   // Settings-managed categories and anything already logged (so old
@@ -109,9 +118,10 @@ export default function App() {
     refresh();
   }
 
-  async function handleSaved() {
+  async function handleSaved(warning) {
     setFormOpen(false);
     setEditingEntry(null);
+    setNotice(warning || "");
     refresh();
   }
 
@@ -121,6 +131,7 @@ export default function App() {
         <div className="app-header__brand">
           <span className="app-header__mark">L</span>
           <h1>Ledger</h1>
+          <SyncStatus onSynced={refresh} />
         </div>
         <button className="btn btn--stamp" onClick={openAdd}>
           + Add entry
@@ -147,6 +158,14 @@ export default function App() {
           )}
 
           {error && <div className="banner banner--error">{error}</div>}
+          {notice && (
+            <div className="banner banner--warning">
+              {notice}
+              <button className="banner__dismiss" onClick={() => setNotice("")} aria-label="Dismiss">
+                ✕
+              </button>
+            </div>
+          )}
 
           {tab === "dashboard" && (
             <Dashboard

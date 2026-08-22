@@ -4,7 +4,7 @@ A mobile-first, single-user spend tracker. React frontend, Go backend, SQLite st
 
 ## Stack
 
-- **Frontend:** React + Vite, no UI framework, hand-rolled CSS (dark "ledger" theme). Served by nginx in production, which also proxies `/api` to the backend.
+- **Frontend:** React + Vite, no UI framework, hand-rolled CSS (dark "ledger" theme). Installable as a PWA (works great on iOS via "Add to Home Screen") and works offline — see below. Served by nginx in production, which also proxies `/api` to the backend.
 - **Backend:** Go, standard library `net/http`, `modernc.org/sqlite` (pure-Go SQLite driver, no CGO needed).
 - **Database:** SQLite, stored on a Docker volume so data survives container restarts.
 
@@ -63,6 +63,37 @@ DB_PATH=./spend.db go run .
 # listens on :8080
 ```
 
+## Installing on iOS (PWA)
+
+Ledger is an installable Progressive Web App. Once it's deployed somewhere reachable from your phone (see **Run it** above — `docker compose up` and open the site on your phone over the same network, or deploy it somewhere with a real URL):
+
+1. Open the site in **Safari** on iOS (it must be Safari — Chrome/Firefox on iOS can't install PWAs, since they're all really Safari under the hood but Apple only exposes this to Safari itself).
+2. Tap the **Share** icon (square with an arrow) in the toolbar.
+3. Tap **Add to Home Screen**.
+4. Tap **Add**.
+
+It now launches full-screen from your home screen like a native app, with its own icon, no Safari address bar, and works offline (see below). A few iOS-specific realities worth knowing:
+
+- **No Background Sync / Push.** iOS doesn't support the Background Sync API, so pending changes don't sync silently in the background the way they might on Android. Ledger works around this by syncing whenever the app is open and online (checking on launch, on the `online` event, and every 20 seconds as a fallback, since iOS doesn't always fire that event reliably) — so just opening the app while connected is enough.
+- **Storage isn't permanent.** iOS Safari can evict a PWA's local storage (including the offline cache) if the app goes unused for a long time or the device is low on space. Your data always lives safely in the backend's SQLite database regardless — the offline cache is just a convenience copy for when you're offline, not the source of truth.
+- **HTTPS in production.** Service workers require a "secure context." `localhost` and plain HTTP over a local network (e.g. `http://192.168.x.x:8081` while testing on your home Wi-Fi) both count, but a real public deployment needs HTTPS — put it behind a reverse proxy with TLS (Caddy, nginx + certbot, Cloudflare Tunnel, Tailscale, etc.) if you're exposing it beyond your LAN.
+
+Android and desktop Chrome/Edge support the same "Install app" flow from the browser menu, with fuller PWA support (including background sync) if you'd rather use it there.
+
+## Offline sync
+
+The app works with no connection at all — not just "read-only cached data," but actually creating, editing, and deleting entries offline:
+
+- On first load (and periodically), the app pulls your full dataset into an on-device cache (IndexedDB) via `GET /api/sync`.
+- While offline, any add/edit/delete is applied immediately in the UI and queued locally. New entries get a temporary ID until they sync.
+- The **Entries** and **Overview** tabs work fully offline: recurring items (paycheque, rent, etc.) are expanded into dated occurrences on-device, using the same date logic as the backend, so month/year/custom-range views are accurate even with zero connectivity.
+- A small pill in the header shows **Offline** or **Syncing N changes…** whenever there's something to report; it disappears once everything's synced.
+- When the connection comes back, queued changes replay against the real API in order, and temporary IDs are swapped for the real ones the server assigns.
+
+**Known limits:**
+- **Receipt photos require a connection.** Queuing an offline file upload (and reconciling it against a transaction that might itself still be un-synced) adds a lot of complexity for what's already an optional feature. Attaching a receipt while offline shows a clear "you're offline" message instead of silently failing later.
+- **Single device at a time, effectively.** If you use Ledger on two devices and both go offline and edit the *same* entry before either reconnects, the last one to sync wins — there's no conflict merging. For a single-user app used from one phone, this basically never comes up in practice, but it's worth knowing if you install it on multiple devices.
+
 ## How it works
 
 - **One-off entries** (a grocery run, a specific payment) are stored as `transactions`.
@@ -100,6 +131,7 @@ All endpoints are under `/api`:
 | PUT | `/recurring/:id` | Update a recurring template |
 | DELETE | `/recurring/:id` | Delete a recurring template |
 | GET | `/summary?start=&end=` | Income/expense/net totals + category breakdown for range |
+| GET | `/sync` | Full raw snapshot (all transactions, recurring items, categories) — used to seed the offline cache |
 | GET | `/categories?type=` | List categories, optionally filtered to `income` or `expense` |
 | POST | `/categories` | Create a category (`{name, type}`) |
 | DELETE | `/categories/:id` | Delete a category |
