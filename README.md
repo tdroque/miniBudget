@@ -129,8 +129,16 @@ The Settings tab has a dedicated panel for this:
 - The **Overview** tab shows a single balance bar for the selected period: the track represents your income, the red fill shows how much of it you've spent, and a hatched overflow shows spending that exceeds income. Below it, a per-category breakdown for the same period.
 - The **Entries** tab lists every one-off and recurring occurrence in the selected period, filterable by category, with inline edit/delete for one-off entries (recurring items are managed from the Recurring tab, since editing one changes every future occurrence).
 - The **Recurring** tab manages your recurring income and expense templates.
-- The **Settings** tab has three things: an install-as-app card (see **Installing as an app** above), the offline & sync panel (see **Offline sync** below), and the category list (add/delete, saved to the database). Categories are split by income/expense; the entry form only offers categories that match the type you're logging. Deleting a category only removes it from the picker — past entries keep whatever category they already had.
+- The **Settings** tab has four things: an install-as-app card (see **Installing as an app** above), the offline & sync panel (see **Offline sync** below), import/export (see below), and the category list (add/delete, saved to the database). Categories are split by income/expense; the entry form only offers categories that match the type you're logging. Deleting a category only removes it from the picker — past entries keep whatever category they already had.
 - Pick **Month**, **Year**, or **Custom** range at the top of any tab — it drives every view.
+
+### Import & export (Settings)
+
+- **Export CSV** downloads everything — every one-off entry and every recurring template — as a single CSV file, pulling the freshest copy from the server (or, if you're offline, the last-known local cache). It's a portable backup and it's a normal CSV, so it opens fine in Excel/Sheets/Numbers too. Receipt photos aren't included (there's no sane way to put an image in a CSV cell).
+- **Import CSV** accepts that same format back, row by row: create the entry via the normal API (so it goes through the same validation, and queues normally if you're offline), and if any category in the file doesn't exist yet in Settings, it's added automatically so the picker stays accurate.
+- **Graceful per-row failure is the whole point.** A row missing a name, a usable amount, a category, or a valid date is skipped — not the entire import. You get a count of how many entries imported, plus a line-by-line list of what got skipped and why (e.g. `Row 14: missing or invalid amount`), referencing the actual spreadsheet row number.
+- **It's forgiving about format**, so plain exports from a bank or budgeting app tend to work too, not just round-tripped exports from this app: dates can be `YYYY-MM-DD` or `MM/DD/YYYY`; amounts can have `$` and thousands separators; and if there's no income/expense column at all, the sign of the amount decides it (negative → expense, positive → income).
+- The full column set is `kind,name,amount,category,type,date,frequency,end_date,description` — `kind` (`transaction` or `recurring`, defaults to `transaction` if the column's absent), `frequency`/`end_date` only matter for recurring rows. An unparseable `end_date` isn't treated as critical — it's just dropped, not skipped.
 
 ### Receipts
 

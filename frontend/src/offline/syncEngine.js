@@ -110,6 +110,11 @@ export async function checkServerReachable() {
   }
 }
 
+export async function getCachedSnapshot() {
+  const [transactions, recurring] = await Promise.all([getAll("transactions"), getAll("recurring")]);
+  return { transactions, recurring };
+}
+
 export async function getFailedOps() {
   const failures = await getAll("failures");
   return failures.sort((a, b) => (a.failedAt < b.failedAt ? 1 : -1));

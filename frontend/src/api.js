@@ -127,6 +127,7 @@ export const api = {
   flushOfflineQueue: () => offline.flushQueue(),
   getPendingSyncCount: () => offline.getPendingCount(),
   subscribeSyncStatus: (cb) => offline.subscribe(cb),
+  getCachedSnapshot: () => offline.getCachedSnapshot(),
 
   // Manual "force offline" toggle (Settings tab).
   isOfflineModeForced: () => prefs.isForcedOffline(),

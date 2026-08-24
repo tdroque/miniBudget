@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api";
 import InstallApp from "./InstallApp.jsx";
 import OfflineSyncSettings from "./OfflineSyncSettings.jsx";
+import ImportExportSettings from "./ImportExportSettings.jsx";
 import "./Settings.css";
 
 export default function Settings({ categories, onChanged }) {
@@ -75,6 +76,7 @@ export default function Settings({ categories, onChanged }) {
     <div className="settings">
       <InstallApp />
       <OfflineSyncSettings />
+      <ImportExportSettings onChanged={onChanged} />
 
       <section className="card">
         <h2 className="section-title">Categories</h2>

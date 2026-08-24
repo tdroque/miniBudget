@@ -223,6 +223,7 @@ export default function App() {
 
       {formOpen && (
         <EntryForm
+          key={editingEntry ? `${editingEntry.kind}-${editingEntry.id}` : "new"}
           entry={editingEntry}
           categories={categories}
           onClose={() => {

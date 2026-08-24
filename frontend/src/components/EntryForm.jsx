@@ -75,6 +75,14 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
     setSaving(true);
     let saveSucceeded = false;
     try {
+      const originalKind = isEditing ? (isRecurringEntry ? "recurring" : "transaction") : null;
+      const targetKind = repeats ? "recurring" : "transaction";
+      // Editing an entry and flipping "this repeats" mid-edit means the kind
+      // of record itself has to change (transaction row <-> recurring
+      // template) — there's no single API call that does that, so it's a
+      // create-the-new-one-then-remove-the-old-one, not a normal update.
+      const isConversion = isEditing && originalKind !== targetKind;
+
       let savedTransactionId = isEditing && !isRecurringEntry ? entry.id : null;
 
       if (repeats) {
@@ -93,6 +101,22 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
         } else {
           await api.createRecurring(payload);
         }
+        saveSucceeded = true;
+
+        if (isConversion) {
+          try {
+            await api.deleteTransaction(entry.id);
+          } catch (deleteErr) {
+            onSaved(
+              `Saved as recurring, but couldn't remove the original one-off entry — you may want to delete it manually. (${deleteErr.message || "unknown error"})`
+            );
+            return;
+          }
+          if (existingReceiptPath) {
+            onSaved("Converted to a recurring entry — its receipt was removed, since recurring templates can't have one.");
+            return;
+          }
+        }
       } else {
         const payload = {
           name: name.trim(),
@@ -108,6 +132,17 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
             : await api.createTransaction(payload);
         savedTransactionId = saved.id;
         saveSucceeded = true;
+
+        if (isConversion) {
+          try {
+            await api.deleteRecurring(entry.id);
+          } catch (deleteErr) {
+            onSaved(
+              `Saved as a one-off entry, but couldn't remove the original recurring template — you may want to delete it manually. (${deleteErr.message || "unknown error"})`
+            );
+            return;
+          }
+        }
 
         // The entry itself is saved (possibly just queued offline) at this
         // point. A receipt failure — most commonly "you're offline" — is a
