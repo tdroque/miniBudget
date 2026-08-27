@@ -24,6 +24,7 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
   const [receiptPreview, setReceiptPreview] = useState(null);
   const [existingReceiptPath, setExistingReceiptPath] = useState(entry?.receipt_path || null);
   const [existingOcrStatus, setExistingOcrStatus] = useState(entry?.ocr_status || "none");
+  const [existingOcrText, setExistingOcrText] = useState(entry?.ocr_text || null);
   const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -285,9 +286,15 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
                   <button type="button" className="receipt-preview__remove" onClick={handleRemoveReceipt}>
                     Remove
                   </button>
-                  {isEditing && existingReceiptPath && !receiptFile && !removeExistingReceipt && (
+                  {isEditing && existingReceiptPath && !receiptFile && !removeExistingReceipt && existingOcrStatus !== "none" && (
                     <span className={`tag tag--ocr-${existingOcrStatus}`}>
-                      {existingOcrStatus === "pending" ? "OCR pending" : existingOcrStatus === "done" ? "OCR done" : existingOcrStatus === "failed" ? "OCR failed" : ""}
+                      {existingOcrStatus === "pending"
+                        ? "Reading receipt…"
+                        : existingOcrStatus === "done"
+                        ? "Text extracted"
+                        : existingOcrStatus === "failed"
+                        ? "Couldn't read text"
+                        : ""}
                     </span>
                   )}
                 </div>
@@ -304,8 +311,24 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
                   <span>📷 Add a photo of the receipt</span>
                 </label>
               )}
+
+              {isEditing && !receiptFile && !removeExistingReceipt && existingOcrStatus === "done" && existingOcrText && (
+                <details className="ocr-text-details">
+                  <summary>Extracted text</summary>
+                  <pre className="ocr-text-block">{existingOcrText}</pre>
+                </details>
+              )}
+
+              {isEditing && !receiptFile && !removeExistingReceipt && existingOcrStatus === "failed" && (
+                <p className="field-hint field-hint--warn">
+                  Couldn't automatically read text from this receipt — it's still saved as a photo either way.
+                </p>
+              )}
+
               <p className="field-hint">
-                Attach a photo now and it's ready for automatic scanning later — nothing is read from it yet.
+                {receiptFile
+                  ? "Text will be pulled off this automatically once it's saved — nothing gets filled in for you yet, but you'll be able to read what it found."
+                  : "Attach a photo and Mini Budget automatically reads the text off it. Nothing is filled in for you yet — that's next."}
               </p>
             </div>
           )}

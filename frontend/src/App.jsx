@@ -116,6 +116,7 @@ export default function App() {
       description: occ.description,
       receipt_path: occ.receipt_path || null,
       ocr_status: occ.ocr_status || "none",
+      ocr_text: occ.ocr_text || null,
     });
     setFormOpen(true);
   }

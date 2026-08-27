@@ -5,7 +5,7 @@ A mobile-first, single-user spend tracker. React frontend, Go backend, SQLite st
 ## Stack
 
 - **Frontend:** React + Vite, no UI framework, hand-rolled CSS (dark "ledger" theme). Installable as a PWA (works great on iOS via "Add to Home Screen") and works offline — see below. Served by nginx in production, which also proxies `/api` to the backend.
-- **Backend:** Go, standard library `net/http`, `modernc.org/sqlite` (pure-Go SQLite driver, no CGO needed).
+- **Backend:** Go, standard library `net/http`, `modernc.org/sqlite` (pure-Go SQLite driver, no CGO needed). Receipt photos are read with **Tesseract OCR**, running self-hosted inside the same container — see **Receipts & OCR** below.
 - **Database:** SQLite, stored on a Docker volume so data survives container restarts.
 
 ## Run it
@@ -62,6 +62,8 @@ cd backend
 DB_PATH=./spend.db go run .
 # listens on :8080
 ```
+
+OCR needs the `tesseract` binary on your PATH (the Docker image installs it automatically; running outside Docker, install it yourself — e.g. `apt install tesseract-ocr` / `brew install tesseract`). If it's missing, the backend logs a warning and disables OCR rather than failing to start; receipts still upload and display fine, they just won't get read automatically.
 
 ## Installing as an app (PWA)
 
@@ -140,14 +142,23 @@ The Settings tab has a dedicated panel for this:
 - **It's forgiving about format**, so plain exports from a bank or budgeting app tend to work too, not just round-tripped exports from this app: dates can be `YYYY-MM-DD` or `MM/DD/YYYY`; amounts can have `$` and thousands separators; and if there's no income/expense column at all, the sign of the amount decides it (negative → expense, positive → income).
 - The full column set is `kind,name,amount,category,type,date,frequency,end_date,description` — `kind` (`transaction` or `recurring`, defaults to `transaction` if the column's absent), `frequency`/`end_date` only matter for recurring rows. An unparseable `end_date` isn't treated as critical — it's just dropped, not skipped.
 
-### Receipts
+### Receipts & OCR
 
 One-off expenses can have a photo attached: tap **Add entry** (or edit an existing expense), choose **Expense**, and use **Add a photo of the receipt**. On mobile this opens the camera directly; on desktop it opens a file picker. Photos are stored on the backend's `/data/receipts` volume (so they survive `docker compose down`) and are viewable from the Entries list via the small camera icon next to a category. Recurring templates don't carry receipts, since they're not a single dated transaction.
 
-**OCR is not implemented** — this release only wires up the plumbing so it can be added later without any schema or upload-flow changes:
-- Every `transactions` row has `receipt_path`, `ocr_status` (`none` / `pending` / `done` / `failed`), and `ocr_text`.
-- Uploading a receipt sets `ocr_status` to `pending`.
-- A future worker can poll `GET /api/transactions?...` (or query the DB directly) for entries with `ocr_status = "pending"`, download the image from `receipt_path`, run OCR, and report the result back via `PUT /api/transactions/:id/ocr` with `{ "ocr_status": "done", "ocr_text": "..." }`. That endpoint already exists and is ready to be called.
+Every uploaded receipt is automatically read with **Tesseract OCR**, running inside the backend container — no external service, no API key, nothing to configure to get it working. The flow:
+
+1. You upload a photo. It's saved and the response comes back immediately (`ocr_status: "pending"`) — OCR runs in the background, not in the request.
+2. A small in-process worker pool (2 workers by default) picks it up, runs `tesseract` against the image, and writes the result back.
+3. Reopen that entry and you'll see either **"Text extracted"** with an expandable **Extracted text** block showing exactly what it found, or **"Couldn't read text"** if the image was too blurry/dark/skewed for Tesseract to make sense of (the photo itself is still saved either way — a failed read never loses the receipt).
+
+A few things worth knowing:
+
+- **Nothing is auto-filled.** This phase only extracts and displays raw text — it doesn't parse out a merchant, amount, or date, and it never silently overwrites what you typed. Turning the extracted text into one-tap field suggestions is a natural next step, not yet built.
+- **Free OCR has real limits.** Tesseract does fine on a clean, flat, well-lit photo and struggles with the things receipts are known for: thermal-printer fonts, creases, skewed angles, faded ink. Treat "Couldn't read text" as normal, not a bug.
+- **If a server restarts mid-job** (deploy, crash, `docker compose restart`), anything still stuck at `pending` gets automatically re-queued the next time the backend starts — nothing gets permanently stuck.
+- **Turning it off:** set `OCR_PROVIDER=none` (see `docker-compose.yml`) if you'd rather not run OCR at all. Receipts still upload and display normally; they just stay at `ocr_status: "pending"` forever, same as if no worker existed.
+- **Swapping in a better engine later:** OCR is implemented behind a small Go interface (`OCRProvider` in `backend/ocr.go`) specifically so a cloud vision API or a multimodal LLM can be dropped in later without touching the upload flow, the queue, the schema, or the frontend — only `newOCRProvider()` would need a new case. Worth knowing if Tesseract's accuracy isn't cutting it: paid options are meaningfully better at this specific task.
 
 ## API
 
@@ -161,7 +172,7 @@ All endpoints are under `/api`:
 | DELETE | `/transactions/:id` | Delete a one-off entry (also removes its receipt, if any) |
 | POST | `/transactions/:id/receipt` | Upload/replace a receipt photo (`multipart/form-data`, field `receipt`, max 10MB, jpg/png/webp/heic) |
 | DELETE | `/transactions/:id/receipt` | Remove a transaction's receipt |
-| PUT | `/transactions/:id/ocr` | Extension point for a future OCR worker to report results |
+| PUT | `/transactions/:id/ocr` | Write back an OCR result — used internally by the built-in Tesseract worker, and open to an external worker too if you ever swap it out |
 | GET | `/recurring` | List recurring templates |
 | POST | `/recurring` | Create a recurring template |
 | PUT | `/recurring/:id` | Update a recurring template |

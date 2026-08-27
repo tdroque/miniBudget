@@ -107,6 +107,52 @@
   margin: -6px 0 0;
   line-height: 1.4;
 }
+.field-hint--warn {
+  color: var(--expense);
+  margin: 0;
+}
+
+.ocr-text-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.ocr-text-details summary {
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ocr-text-details summary::before {
+  content: "▸";
+  font-size: 10px;
+  transition: transform 0.12s ease;
+}
+.ocr-text-details[open] summary::before {
+  transform: rotate(90deg);
+}
+.ocr-text-details summary::-webkit-details-marker {
+  display: none;
+}
+.ocr-text-block {
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
 
 .receipt-field {
   gap: 8px;

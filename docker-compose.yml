@@ -5,6 +5,11 @@ services:
     environment:
       - DB_PATH=/data/spend.db
       - PORT=8080
+      # OCR (receipt text extraction) — these have sane defaults baked into
+      # the image already; uncomment only to override them.
+      # - OCR_PROVIDER=tesseract   # tesseract | none
+      # - OCR_LANG=eng             # tesseract language pack, e.g. "eng+fra"
+      # - OCR_MAX_CONCURRENT=2     # how many receipts to process at once
     volumes:
       - spend-data:/data
     expose:

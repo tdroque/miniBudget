@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 type api struct {
 	db          *sql.DB
 	receiptsDir string
+	ocrQueue    *ocrQueue // nil when OCR is disabled (OCR_PROVIDER=none, or the provider failed to initialize)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
@@ -160,6 +162,7 @@ func (a *api) combinedOccurrences(start, end time.Time, category string) ([]Occu
 			Description: t.Description,
 			ReceiptPath: t.ReceiptPath,
 			OCRStatus:   t.OCRStatus,
+			OCRText:     t.OCRText,
 		})
 	}
 
@@ -366,6 +369,10 @@ func (a *api) uploadReceipt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if a.ocrQueue != nil {
+		a.ocrQueue.enqueue(ocrJob{transactionID: id, receiptPath: receiptPath})
+	}
+
 	saved, err := a.getTransaction(id)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
@@ -402,9 +409,39 @@ func (a *api) deleteReceipt(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, saved)
 }
 
-// updateOCRResult is the callback a future OCR worker calls once it has
-// processed a pending receipt. Not wired up to any worker yet - this is the
-// contract that one would use.
+// setOCRResult is the one place that writes ocr_status/ocr_text. Used by
+// both the external-facing callback endpoint below and the internal OCR
+// queue (ocrqueue.go).
+func (a *api) setOCRResult(id int64, status string, text *string) (Transaction, error) {
+	if _, err := a.db.Exec(`UPDATE transactions SET ocr_status=?, ocr_text=? WHERE id=?`, status, text, id); err != nil {
+		return Transaction{}, err
+	}
+	return a.getTransaction(id)
+}
+
+// setOCRResultIfCurrent writes the result only if the transaction's
+// receipt hasn't changed since the OCR job for it was enqueued — it may
+// have been replaced or removed while OCR was still running, in which case
+// this result is stale and writing it would show OCR output for a photo
+// that's no longer attached.
+func (a *api) setOCRResultIfCurrent(id int64, expectedReceiptPath, status string, text *string) {
+	current, err := a.getTransaction(id)
+	if err != nil {
+		return // transaction was deleted entirely
+	}
+	if current.ReceiptPath == nil || *current.ReceiptPath != expectedReceiptPath {
+		return // receipt was replaced or removed since this job was queued
+	}
+	if _, err := a.setOCRResult(id, status, text); err != nil {
+		log.Printf("ocr: failed to write result for transaction %d: %v", id, err)
+	}
+}
+
+// updateOCRResult is the callback an OCR worker calls once it has processed
+// a pending receipt. The built-in queue (ocrqueue.go) is one caller of this
+// same logic (via setOCRResult directly, with its own staleness check); this
+// HTTP endpoint exists so an external worker could call it too, without any
+// other change to the upload flow or schema.
 func (a *api) updateOCRResult(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
@@ -423,13 +460,7 @@ func (a *api) updateOCRResult(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "ocr_status must be pending, done, failed, or none")
 		return
 	}
-	if _, err := a.db.Exec(
-		`UPDATE transactions SET ocr_status=?, ocr_text=? WHERE id=?`, body.Status, body.Text, id,
-	); err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	saved, err := a.getTransaction(id)
+	saved, err := a.setOCRResult(id, body.Status, body.Text)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

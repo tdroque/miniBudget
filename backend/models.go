@@ -57,6 +57,7 @@ type Occurrence struct {
 	Description string  `json:"description"`
 	ReceiptPath *string `json:"receipt_path,omitempty"`
 	OCRStatus   string  `json:"ocr_status,omitempty"`
+	OCRText     *string `json:"ocr_text,omitempty"`
 }
 
 // occurrencesInRange expands a recurring item into concrete calendar dates

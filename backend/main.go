@@ -4,7 +4,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +48,28 @@ func main() {
 	defer db.Close()
 
 	a := &api{db: db, receiptsDir: receiptsDir}
+
+	// OCR is best-effort and never fatal to start up: if the provider can't
+	// be created (e.g. OCR_PROVIDER=tesseract but the binary isn't
+	// installed), receipts just stay at ocr_status "pending" forever, which
+	// is the same behavior as before this feature existed at all.
+	ocrProviderName := envOr("OCR_PROVIDER", "tesseract")
+	ocrProvider, err := newOCRProvider(ocrProviderName)
+	if err != nil {
+		log.Printf("ocr: %v — OCR is disabled", err)
+	} else if ocrProvider == nil {
+		log.Printf("ocr: disabled (OCR_PROVIDER=%s)", ocrProviderName)
+	} else {
+		workers := 2
+		if v := os.Getenv("OCR_MAX_CONCURRENT"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				workers = n
+			}
+		}
+		a.ocrQueue = newOCRQueue(ocrProvider, workers, a)
+		log.Printf("ocr: enabled (provider=%s, workers=%d)", ocrProviderName, workers)
+		a.requeuePendingReceipts()
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
