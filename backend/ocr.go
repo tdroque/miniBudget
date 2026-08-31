@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -47,6 +48,7 @@ func newOCRProvider(name string) (OCRProvider, error) {
 type tesseractProvider struct {
 	binPath string
 	lang    string
+	psm     string
 	timeout time.Duration
 }
 
@@ -56,19 +58,40 @@ func newTesseractProvider() (*tesseractProvider, error) {
 		return nil, fmt.Errorf("tesseract binary not found in PATH (install tesseract-ocr, or set OCR_PROVIDER=none): %w", err)
 	}
 	lang := envOr("OCR_LANG", "eng")
-	return &tesseractProvider{binPath: bin, lang: lang, timeout: 30 * time.Second}, nil
+	// PSM 6 ("assume a single uniform block of text") fits receipts much
+	// better than Tesseract's default automatic page-segmentation mode,
+	// which is tuned for general documents/photos and can get confused by
+	// a narrow, noisy column of text into finding nothing at all.
+	psm := envOr("OCR_PSM", "6")
+	return &tesseractProvider{binPath: bin, lang: lang, psm: psm, timeout: 30 * time.Second}, nil
 }
 
 func (p *tesseractProvider) Extract(ctx context.Context, imagePath string) (OCRResult, error) {
+	// Preprocessing (illumination correction, denoise, contrast stretch,
+	// upscale — see ocr_preprocess.go) makes a dramatic difference on real
+	// phone photos of receipts. If it fails for some reason, fall back to
+	// running Tesseract on the original rather than failing the whole job
+	// over a preprocessing bug.
+	target := imagePath
+	tmpFile, err := os.CreateTemp("", "ocr-pre-*.png")
+	if err == nil {
+		tmpPath := tmpFile.Name()
+		tmpFile.Close()
+		defer os.Remove(tmpPath)
+		if err := preprocessForOCR(imagePath, tmpPath); err == nil {
+			target = tmpPath
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, p.timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, p.binPath, imagePath, "stdout", "-l", p.lang)
+	cmd := exec.CommandContext(ctx, p.binPath, target, "stdout", "-l", p.lang, "--psm", p.psm)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		return OCRResult{}, errors.New("tesseract timed out")
 	}
