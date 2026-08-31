@@ -112,6 +112,20 @@
   margin: 0;
 }
 
+.ocr-total-line {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ocr-total-line__caveat {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
 .ocr-text-details {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

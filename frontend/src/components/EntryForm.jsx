@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import { toISODate } from "../dateUtils";
+import { toISODate, formatMoney } from "../dateUtils";
+import { extractTotalFromOCRText } from "../ocrExtract";
 import "./EntryForm.css";
 
 export default function EntryForm({ entry, categories, onClose, onSaved }) {
@@ -179,6 +180,8 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
   }
 
   const currentReceiptSrc = receiptPreview || (!removeExistingReceipt ? api.receiptUrl(existingReceiptPath) : null);
+  const showDetectedTotal = isEditing && !receiptFile && !removeExistingReceipt && existingOcrStatus === "done";
+  const detectedTotal = showDetectedTotal ? extractTotalFromOCRText(existingOcrText) : null;
 
   return (
     <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -310,6 +313,19 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
                   />
                   <span>📷 Add a photo of the receipt</span>
                 </label>
+              )}
+
+              {showDetectedTotal && (
+                <p className="ocr-total-line">
+                  {detectedTotal !== null ? (
+                    <>
+                      Detected total: <span className="mono">{formatMoney(detectedTotal)}</span>
+                    </>
+                  ) : (
+                    "No total detected in the extracted text."
+                  )}
+                  <span className="ocr-total-line__caveat"> (experimental — not filled in automatically)</span>
+                </p>
               )}
 
               {isEditing && !receiptFile && !removeExistingReceipt && existingOcrStatus === "done" && existingOcrText && (
