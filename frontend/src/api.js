@@ -103,6 +103,19 @@ export const api = {
   createCategory: (data) => mutate("categories", "POST", { path: "/categories", body: data }),
   deleteCategory: (id) => mutate("categories", "DELETE", { path: `/categories/${id}`, offlineId: id }),
 
+  // Budgets (per expense category — Budget tab)
+  getBudgets: async () => {
+    try {
+      return await request("/budgets");
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getOfflineBudgets();
+    }
+  },
+  createBudget: (data) => mutate("budgets", "POST", { path: "/budgets", body: data }),
+  updateBudget: (id, data) => mutate("budgets", "PUT", { path: `/budgets/${id}`, body: data, offlineId: id }),
+  deleteBudget: (id) => mutate("budgets", "DELETE", { path: `/budgets/${id}`, offlineId: id }),
+
   // Receipts require a live connection — offline photo queueing isn't
   // supported (see offline/syncEngine.js header comment for why).
   uploadReceipt: (transactionId, file) => {

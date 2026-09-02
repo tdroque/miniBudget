@@ -1,0 +1,103 @@
+.budget-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.budget-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.budget-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.budget-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.budget-row__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.budget-row__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.budget-row__amounts {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+.budget-row__spent {
+  font-weight: 600;
+}
+.budget-row__spent--ok {
+  color: var(--income);
+}
+.budget-row__spent--warn {
+  color: var(--stamp);
+}
+.budget-row__spent--over {
+  color: var(--expense);
+}
+.budget-row__of {
+  color: var(--text-muted);
+}
+.budget-row__over-tag {
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--expense);
+  background: var(--expense-dim);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.budget-row__track {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.budget-row__fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+.budget-row__fill--ok {
+  background: var(--income);
+}
+.budget-row__fill--warn {
+  background: var(--stamp);
+}
+.budget-row__fill--over {
+  background: var(--expense);
+}
+.budget-row__overflow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(234, 90, 95, 0.9),
+    rgba(234, 90, 95, 0.9) 4px,
+    rgba(234, 90, 95, 0.55) 4px,
+    rgba(234, 90, 95, 0.55) 8px
+  );
+}

@@ -562,6 +562,109 @@ func (a *api) deleteRecurring(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ---------- Budgets ----------
+
+func (a *api) listBudgets(w http.ResponseWriter, r *http.Request) {
+	budgets, err := a.listAllBudgets()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, budgets)
+}
+
+func (a *api) listAllBudgets() ([]Budget, error) {
+	rows, err := a.db.Query(`SELECT id, category, amount, created_at FROM budgets ORDER BY category COLLATE NOCASE`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Budget{}
+	for rows.Next() {
+		var b Budget
+		if err := rows.Scan(&b.ID, &b.Category, &b.Amount, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, nil
+}
+
+func (a *api) createBudget(w http.ResponseWriter, r *http.Request) {
+	var b Budget
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validateBudget(&b); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	res, err := a.db.Exec(`INSERT INTO budgets (category, amount) VALUES (?, ?)`, b.Category, b.Amount)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			writeErr(w, http.StatusConflict, "there's already a budget for that category — edit it instead")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	b.ID, _ = res.LastInsertId()
+	writeJSON(w, http.StatusCreated, b)
+}
+
+func (a *api) updateBudget(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var b Budget
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validateBudget(&b); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if _, err := a.db.Exec(`UPDATE budgets SET category=?, amount=? WHERE id=?`, b.Category, b.Amount, id); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			writeErr(w, http.StatusConflict, "there's already a budget for that category")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	b.ID = id
+	writeJSON(w, http.StatusOK, b)
+}
+
+func (a *api) deleteBudget(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if _, err := a.db.Exec(`DELETE FROM budgets WHERE id=?`, id); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func validateBudget(b *Budget) error {
+	b.Category = strings.TrimSpace(b.Category)
+	if b.Category == "" {
+		return errBadRequest("category is required")
+	}
+	if b.Amount <= 0 {
+		return errBadRequest("amount must be greater than 0")
+	}
+	return nil
+}
+
 // ---------- Categories ----------
 
 func (a *api) listCategories(w http.ResponseWriter, r *http.Request) {
@@ -713,6 +816,7 @@ type syncSnapshot struct {
 	Transactions []Transaction   `json:"transactions"`
 	Recurring    []RecurringItem `json:"recurring"`
 	Categories   []Category      `json:"categories"`
+	Budgets      []Budget        `json:"budgets"`
 }
 
 func (a *api) handleSync(w http.ResponseWriter, r *http.Request) {
@@ -731,6 +835,11 @@ func (a *api) handleSync(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	budgets, err := a.listAllBudgets()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	if txns == nil {
 		txns = []Transaction{}
 	}
@@ -742,6 +851,7 @@ func (a *api) handleSync(w http.ResponseWriter, r *http.Request) {
 		Transactions: txns,
 		Recurring:    recs,
 		Categories:   cats,
+		Budgets:      budgets,
 	})
 }
 

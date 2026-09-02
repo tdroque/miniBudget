@@ -131,6 +131,7 @@ The Settings tab has a dedicated panel for this:
 - The **Overview** tab shows a single balance bar for the selected period: the track represents your income, the red fill shows how much of it you've spent, and a hatched overflow shows spending that exceeds income. Below it, a per-category breakdown for the same period.
 - The **Entries** tab lists every one-off and recurring occurrence in the selected period, filterable by category, with inline edit/delete for one-off entries (recurring items are managed from the Recurring tab, since editing one changes every future occurrence).
 - The **Recurring** tab manages your recurring income and expense templates.
+- The **Budget** tab sets a spending limit per expense category — tap **+ Add budget**, pick a category (expense categories only) and an amount. Each budget shows a progress bar styled like the Overview bar: spent so far vs. the limit, turning amber past 80% and red with a hatched overflow once you're over. "Spent" is every expense in that category — one-off and recurring alike — for whatever period is currently selected at the top (Month, Year, or Custom), the same range every other tab uses; there's no separate budget-specific period. A category's budget can't be changed after creation (delete and re-add instead) to avoid ambiguity about what happens to spending already counted against the old category.
 - The **Settings** tab has four things: an install-as-app card (see **Installing as an app** above), the offline & sync panel (see **Offline sync** below), import/export (see below), and the category list (add/delete, saved to the database). Categories are split by income/expense; the entry form only offers categories that match the type you're logging. Deleting a category only removes it from the picker — past entries keep whatever category they already had.
 - Pick **Month**, **Year**, or **Custom** range at the top of any tab — it drives every view.
 
@@ -183,11 +184,15 @@ All endpoints are under `/api`:
 | PUT | `/recurring/:id` | Update a recurring template |
 | DELETE | `/recurring/:id` | Delete a recurring template |
 | GET | `/summary?start=&end=` | Income/expense/net totals + category breakdown for range |
-| GET | `/sync` | Full raw snapshot (all transactions, recurring items, categories) — used to seed the offline cache |
+| GET | `/sync` | Full raw snapshot (all transactions, recurring items, categories, budgets) — used to seed the offline cache |
 | GET | `/health` | Basic liveness check — used by the Settings "Server" status ping |
 | GET | `/categories?type=` | List categories, optionally filtered to `income` or `expense` |
 | POST | `/categories` | Create a category (`{name, type}`) |
 | DELETE | `/categories/:id` | Delete a category |
+| GET | `/budgets` | List budgets |
+| POST | `/budgets` | Create a budget (`{category, amount}`) — 409 if that category already has one |
+| PUT | `/budgets/:id` | Update a budget's amount (and/or category, though the UI doesn't offer changing it — see Budget tab above) |
+| DELETE | `/budgets/:id` | Delete a budget |
 
 Uploaded receipt images are served back at `/uploads/<filename>` (not under `/api`), proxied by nginx in production and by Vite's dev server locally.
 

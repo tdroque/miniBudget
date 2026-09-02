@@ -24,6 +24,7 @@ const RESOURCE_PATH = {
   transactions: "/transactions",
   recurring: "/recurring",
   categories: "/categories",
+  budgets: "/budgets",
 };
 
 let nextTempId = -1;
@@ -83,6 +84,7 @@ export async function bootstrap() {
     replaceAll("transactions", snapshot.transactions),
     replaceAll("recurring", snapshot.recurring),
     replaceAll("categories", snapshot.categories),
+    replaceAll("budgets", snapshot.budgets || []),
   ]);
   notify();
   return snapshot;
@@ -305,6 +307,10 @@ async function reconcileTempId(resource, tempId, serverRecord) {
 export async function getOfflineCategories(type) {
   const all = await getAll("categories");
   return type ? all.filter((c) => c.type === type) : all;
+}
+
+export async function getOfflineBudgets() {
+  return getAll("budgets");
 }
 
 export async function getOfflineRecurring() {

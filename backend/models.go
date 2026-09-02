@@ -29,6 +29,19 @@ type Category struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
+// Budget is a spending limit for one expense category. There's no period
+// field — it's evaluated against whatever date range the rest of the app
+// currently has selected (Month/Year/Custom), the same way the Dashboard's
+// category breakdown is. Deliberately simple: one budget per category,
+// enforced by a UNIQUE constraint rather than the app trying to merge or
+// stack multiple budgets for the same category.
+type Budget struct {
+	ID        int64   `json:"id"`
+	Category  string  `json:"category"`
+	Amount    float64 `json:"amount"`
+	CreatedAt string  `json:"created_at,omitempty"`
+}
+
 // RecurringItem is a template for a repeating income/expense (paycheque, rent, etc).
 type RecurringItem struct {
 	ID          int64   `json:"id"`

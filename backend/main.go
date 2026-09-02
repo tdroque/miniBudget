@@ -98,6 +98,11 @@ func main() {
 	mux.HandleFunc("POST /api/categories", a.createCategory)
 	mux.HandleFunc("DELETE /api/categories/{id}", a.deleteCategory)
 
+	mux.HandleFunc("GET /api/budgets", a.listBudgets)
+	mux.HandleFunc("POST /api/budgets", a.createBudget)
+	mux.HandleFunc("PUT /api/budgets/{id}", a.updateBudget)
+	mux.HandleFunc("DELETE /api/budgets/{id}", a.deleteBudget)
+
 	// Summary
 	mux.HandleFunc("GET /api/summary", a.handleSummary)
 

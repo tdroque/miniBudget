@@ -6,6 +6,7 @@ import PeriodPicker from "./components/PeriodPicker.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import TransactionList from "./components/TransactionList.jsx";
 import RecurringList from "./components/RecurringList.jsx";
+import Budget from "./components/Budget.jsx";
 import Settings from "./components/Settings.jsx";
 import EntryForm from "./components/EntryForm.jsx";
 import SyncStatus from "./components/SyncStatus.jsx";
@@ -17,7 +18,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     if (typeof window === "undefined") return "dashboard";
     const requested = new URLSearchParams(window.location.search).get("tab");
-    return ["dashboard", "transactions", "recurring", "settings"].includes(requested) ? requested : "dashboard";
+    return ["dashboard", "transactions", "budget", "recurring", "settings"].includes(requested) ? requested : "dashboard";
   });
 
   const [periodMode, setPeriodMode] = useState("month"); // month | year | custom
@@ -31,6 +32,7 @@ export default function App() {
   const [occurrences, setOccurrences] = useState([]);
   const [summary, setSummary] = useState(null);
   const [recurring, setRecurring] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -49,16 +51,18 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const [occ, sum, cats, rec] = await Promise.all([
+      const [occ, sum, cats, rec, buds] = await Promise.all([
         api.getOccurrences(range.start, range.end, categoryFilter),
         api.getSummary(range.start, range.end),
         api.getCategories(),
         api.getRecurring(),
+        api.getBudgets(),
       ]);
       setOccurrences(occ);
       setSummary(sum);
       setCategories(cats);
       setRecurring(rec);
+      setBudgets(buds);
     } catch (e) {
       setError(e.message || "Something went wrong loading your data.");
     } finally {
@@ -205,6 +209,10 @@ export default function App() {
               onEdit={openEditTransaction}
               onDelete={handleDeleteTransaction}
             />
+          )}
+
+          {tab === "budget" && (
+            <Budget budgets={budgets} summary={summary} loading={loading} categories={categories} onChanged={refresh} />
           )}
 
           {tab === "recurring" && (

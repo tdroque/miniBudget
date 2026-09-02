@@ -72,9 +72,17 @@ func openDB(path string) *sql.DB {
 		UNIQUE(name, type)
 	);
 
+	CREATE TABLE IF NOT EXISTS budgets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		category TEXT NOT NULL UNIQUE,
+		amount REAL NOT NULL,
+		created_at TEXT NOT NULL DEFAULT (datetime('now'))
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 	CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
 	CREATE INDEX IF NOT EXISTS idx_recurring_start ON recurring_items(start_date);
+	CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(category);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
