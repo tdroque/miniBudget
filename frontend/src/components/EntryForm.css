@@ -233,6 +233,12 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
+  animation: ocr-pending-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ocr-pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 .tag--ocr-done {
   position: absolute;

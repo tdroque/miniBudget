@@ -65,6 +65,17 @@ export const api = {
     }
   },
   createTransaction: (data) => mutate("transactions", "POST", { path: "/transactions", body: data }),
+  // Single-record lookup, distinct from getOccurrences — used to poll one
+  // transaction's OCR status while its edit form is open, without needing
+  // to know (or re-fetch) the currently-selected date range.
+  getTransaction: async (id) => {
+    try {
+      return await request(`/transactions/${id}`);
+    } catch (err) {
+      if (!isNetworkError(err)) throw err;
+      return offline.getCachedTransaction(id);
+    }
+  },
   updateTransaction: (id, data) =>
     mutate("transactions", "PUT", { path: `/transactions/${id}`, body: data, offlineId: id }),
   deleteTransaction: (id) => mutate("transactions", "DELETE", { path: `/transactions/${id}`, offlineId: id }),

@@ -46,6 +46,43 @@ export default function EntryForm({ entry, categories, onClose, onSaved }) {
     };
   }, [receiptPreview]);
 
+  // Live-update the OCR result while this form is open, so finishing a scan
+  // doesn't require closing and reopening the entry to see it. Only polls
+  // while there's actually something to wait for — a real, still-attached,
+  // still-pending receipt on a real (already-saved) transaction — and stops
+  // itself the moment the status leaves "pending" or the form moves on to
+  // something else (a new file staged, the receipt removed, etc).
+  useEffect(() => {
+    if (!isEditing || isRecurringEntry) return;
+    if (typeof entry.id !== "number" || entry.id < 0) return; // not yet synced — nothing to poll on the server
+    if (!existingReceiptPath || removeExistingReceipt || receiptFile) return;
+    if (existingOcrStatus !== "pending") return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const latest = await api.getTransaction(entry.id);
+        if (cancelled || !latest) return;
+        // The receipt itself may have changed underneath us (e.g. synced
+        // from another device) — don't show OCR results for a photo that
+        // isn't the one currently attached.
+        if (latest.receipt_path !== existingReceiptPath) return;
+        if (latest.ocr_status && latest.ocr_status !== existingOcrStatus) {
+          setExistingOcrStatus(latest.ocr_status);
+          setExistingOcrText(latest.ocr_text || null);
+        }
+      } catch {
+        // Transient poll failure — just try again next tick rather than
+        // surfacing an error for what's only a background status check.
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isEditing, isRecurringEntry, entry?.id, existingReceiptPath, removeExistingReceipt, receiptFile, existingOcrStatus]);
+
   function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;

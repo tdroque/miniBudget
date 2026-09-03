@@ -16,7 +16,7 @@
 // a live connection, and the UI says so.
 
 import { API_BASE } from "../config.js";
-import { getAll, put, del, replaceAll } from "./db.js";
+import { getAll, get, put, del, replaceAll } from "./db.js";
 import { occurrencesInRange, parseISO } from "./recurrence.js";
 import { effectiveOnline } from "./preferences.js";
 
@@ -303,6 +303,14 @@ async function reconcileTempId(resource, tempId, serverRecord) {
 }
 
 // ---------- Offline reads ----------
+
+// Single-record lookup used to poll one transaction's OCR status while its
+// edit form is open. Offline, this just returns whatever was last synced —
+// OCR itself needs a live connection to the backend worker, so there's
+// nothing new to find while offline, but the poll shouldn't throw either.
+export async function getCachedTransaction(id) {
+  return get("transactions", id);
+}
 
 export async function getOfflineCategories(type) {
   const all = await getAll("categories");

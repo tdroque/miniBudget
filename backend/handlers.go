@@ -241,6 +241,25 @@ func (a *api) createTransaction(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, saved)
 }
 
+// getTransactionByID is a single-record lookup, distinct from the range-
+// based GET /api/transactions used everywhere else. It exists specifically
+// so the frontend can poll one transaction's ocr_status/ocr_text while its
+// edit form is open, without re-fetching (or even knowing) the current
+// date range.
+func (a *api) getTransactionByID(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	t, err := a.getTransaction(id)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "transaction not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, t)
+}
+
 func (a *api) updateTransaction(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {

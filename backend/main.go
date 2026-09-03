@@ -79,6 +79,7 @@ func main() {
 	// Transactions (one-off entries)
 	mux.HandleFunc("GET /api/transactions", a.listOccurrences)
 	mux.HandleFunc("POST /api/transactions", a.createTransaction)
+	mux.HandleFunc("GET /api/transactions/{id}", a.getTransactionByID)
 	mux.HandleFunc("PUT /api/transactions/{id}", a.updateTransaction)
 	mux.HandleFunc("DELETE /api/transactions/{id}", a.deleteTransaction)
 

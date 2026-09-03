@@ -154,7 +154,7 @@ Every uploaded receipt is automatically read with **Tesseract OCR**, running ins
    - **Orientation.** Phones typically save a photo with pixels in landscape and an EXIF tag saying "rotate for display" — normal, correct JPEG behavior that most image-processing code (including Go's standard library) simply ignores. Skip this step and a portrait phone photo produces near-total garbage; this was measured directly, not assumed.
    - **Uneven lighting.** A hand-held photo almost always has some shadow or brightness gradient across the receipt. The pipeline estimates that gradient and divides it back out, then restretches contrast — this mattered more than denoising or sharpening in testing, and naive contrast/sharpen filters were tried and made things measurably *worse* (they amplify sensor noise into phantom text), so they're deliberately not used.
 3. A small in-process worker pool (2 workers by default) runs the preprocessed image through `tesseract` and writes the result back.
-4. Reopen that entry and you'll see either **"Text extracted"** with an expandable **Extracted text** block showing exactly what it found, or **"Couldn't read text"** if the image was still too blurry/dark/skewed for Tesseract to make sense of (the photo itself is still saved either way — a failed read never loses the receipt).
+4. If you keep that entry's edit view open, it updates on its own — checking every few seconds while OCR is still running and flipping the badge to **"Text extracted"** (with an expandable **Extracted text** block showing exactly what it found) or **"Couldn't read text"** the moment the backend finishes, no reopening or refreshing needed. Navigate away and back later and you'll see the same result waiting for you either way (the photo itself is always saved regardless of whether OCR succeeds — a failed read never loses the receipt).
 
 A few things worth knowing:
 
@@ -174,6 +174,7 @@ All endpoints are under `/api`:
 |---|---|---|
 | GET | `/transactions?start=&end=&category=` | One-off + materialized recurring occurrences in range |
 | POST | `/transactions` | Create a one-off entry |
+| GET | `/transactions/:id` | Fetch one transaction — used to poll OCR status live while its edit view is open |
 | PUT | `/transactions/:id` | Update a one-off entry |
 | DELETE | `/transactions/:id` | Delete a one-off entry (also removes its receipt, if any) |
 | POST | `/transactions/:id/receipt` | Upload/replace a receipt photo (`multipart/form-data`, field `receipt`, max 10MB, jpg/png/webp/heic) |
