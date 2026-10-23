@@ -1,0 +1,34 @@
+diff --git a/frontend-race/src/race.css b/frontend-race/src/race.css
+index e93855e..9d6e8de 100755
+--- a/frontend-race/src/race.css
++++ b/frontend-race/src/race.css
+@@ -1,5 +1,29 @@
+ /* Race Budget additions on top of the Mini Budget styles copied alongside. */
+ 
++/* Form fields. In Mini Budget these rules live in PeriodPicker.css, which
++   Race Budget doesn't have, so they're repeated here. */
++.field {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++  font-size: 12px;
++  color: var(--text-muted);
++  flex: 1;
++}
++.field span {
++  font-weight: 500;
++}
++.field input,
++.field select,
++.field textarea {
++  background: var(--surface-raised);
++  border: 1px solid var(--border);
++  border-radius: var(--radius-sm);
++  color: var(--text);
++  padding: 9px 10px;
++  font-size: 14px;
++}
++
+ .scope-bar {
+   display: flex;
+   align-items: center;
