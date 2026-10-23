@@ -1,0 +1,212 @@
+diff --git a/frontend-race/src/components/CostForm.jsx b/frontend-race/src/components/CostForm.jsx
+index c8172e9..7cff614 100755
+--- a/frontend-race/src/components/CostForm.jsx
++++ b/frontend-race/src/components/CostForm.jsx
+@@ -3,21 +3,6 @@ import { api } from "../api";
+ import { toISODate } from "../dateUtils";
+ import Modal from "./Modal.jsx";
+ 
+-const NAME_IDEAS = [
+-  "Entry fee",
+-  "Gas",
+-  "Flight",
+-  "Rental car",
+-  "Hotel",
+-  "Parking",
+-  "Bag check",
+-  "Meals",
+-  "Race-day nutrition",
+-  "Gels & fuel",
+-  "Gear",
+-  "Crew / pacer",
+-];
+-
+ export default function CostForm({ cost, races, categories, defaultRaceId, onClose, onSaved }) {
+   const isEditing = Boolean(cost);
+   const linked = Boolean(cost?.transaction_id);
+@@ -85,17 +70,11 @@ export default function CostForm({ cost, races, categories, defaultRaceId, onClo
+           <span>What</span>
+           <input
+             type="text"
+-            list="cost-name-ideas"
+             placeholder="Gas, flight, entry fee…"
+             value={name}
+             onChange={(e) => setName(e.target.value)}
+             autoFocus={!isEditing}
+           />
+-          <datalist id="cost-name-ideas">
+-            {NAME_IDEAS.map((n) => (
+-              <option key={n} value={n} />
+-            ))}
+-          </datalist>
+         </label>
+ 
+         <div className="field-grid">
+diff --git a/frontend-race/src/components/RaceDetails.jsx b/frontend-race/src/components/RaceDetails.jsx
+new file mode 100644
+index 0000000..1b9d9ff
+--- /dev/null
++++ b/frontend-race/src/components/RaceDetails.jsx
+@@ -0,0 +1,64 @@
++import { formatMoney, formatShortDate } from "../dateUtils";
++import { sortCosts } from "../summary";
++import Modal from "./Modal.jsx";
++import RaceBar from "./RaceBar.jsx";
++import "./TransactionList.css";
++
++// Read-only view of one race: totals up top, then every cost on it.
++export default function RaceDetails({ race, costs, onClose }) {
++  const mine = sortCosts(costs.filter((c) => c.race_id === race.id));
++  const paid = mine.filter((c) => c.status === "paid").reduce((s, c) => s + c.amount, 0);
++  const planned = mine.filter((c) => c.status !== "paid").reduce((s, c) => s + c.amount, 0);
++  const meta = [race.type, race.date ? formatShortDate(race.date) : ""].filter(Boolean).join(" · ");
++
++  return (
++    <Modal title={race.name} onClose={onClose}>
++      {meta && <p className="text-muted race-detail__meta">{meta}</p>}
++
++      <RaceBar budget={Number(race.budget) || 0} paid={paid} planned={planned} />
++      <div className="race-stats">
++        <div>
++          <span className="text-muted">Paid</span>
++          <span className="mono">{formatMoney(paid)}</span>
++        </div>
++        <div>
++          <span className="text-muted">Still planned</span>
++          <span className="mono">{formatMoney(planned)}</span>
++        </div>
++        <div>
++          <span className="text-muted">Costs</span>
++          <span className="mono">{mine.length}</span>
++        </div>
++      </div>
++
++      <h3 className="section-title race-detail__title">All costs</h3>
++      {mine.length === 0 ? (
++        <div className="banner banner--empty">No costs on this race yet.</div>
++      ) : (
++        <ul className="txn-list race-detail__list">
++          {mine.map((c) => (
++            <li className="txn-row" key={c.id}>
++              <div className="txn-row__info">
++                <span className="txn-row__name">
++                  {c.name}
++                  {c.status !== "paid" && <span className="tag tag--planned">planned</span>}
++                  {c.transaction_id && <span className="tag tag--budget">in Mini Budget</span>}
++                </span>
++                <span className="txn-row__meta">{[c.date ? formatShortDate(c.date) : "No date", c.category].join(" · ")}</span>
++                {c.note && <span className="txn-row__meta">{c.note}</span>}
++              </div>
++              <span className="mono txn-row__amount txn-row__amount--expense">{formatMoney(c.amount)}</span>
++            </li>
++          ))}
++        </ul>
++      )}
++
++      {mine.length > 0 && (
++        <div className="race-detail__total">
++          <span>Total</span>
++          <span className="mono">{formatMoney(paid + planned)}</span>
++        </div>
++      )}
++    </Modal>
++  );
++}
+diff --git a/frontend-race/src/components/Races.jsx b/frontend-race/src/components/Races.jsx
+index 0fe68af..33df2f5 100755
+--- a/frontend-race/src/components/Races.jsx
++++ b/frontend-race/src/components/Races.jsx
+@@ -2,12 +2,14 @@ import { useState } from "react";
+ import { api } from "../api";
+ import { formatMoney, formatShortDate } from "../dateUtils";
+ import RaceBar from "./RaceBar.jsx";
++import RaceDetails from "./RaceDetails.jsx";
+ import "./TransactionList.css";
+ 
+ export default function Races({ races, costs, loading, onAdd, onEdit, onChanged }) {
+   const [confirmId, setConfirmId] = useState(null);
+   const [busyId, setBusyId] = useState(null);
+   const [error, setError] = useState("");
++  const [detailId, setDetailId] = useState(null);
+ 
+   async function remove(id) {
+     setError("");
+@@ -43,7 +45,15 @@ export default function Races({ races, costs, loading, onAdd, onEdit, onChanged
+         const planned = mine.filter((c) => c.status !== "paid").reduce((s, c) => s + c.amount, 0);
+         const linkedCount = mine.filter((c) => c.transaction_id).length;
+         return (
+-          <section className="card" key={r.id}>
++          <section
++            className="card race-card"
++            key={r.id}
++            role="button"
++            tabIndex={0}
++            aria-label={`Details for ${r.name}`}
++            onClick={(e) => !e.target.closest("button, .cost-confirm") && setDetailId(r.id)}
++            onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && setDetailId(r.id)}
++          >
+             <div className="section-header">
+               <div className="txn-row__info">
+                 <span className="txn-row__name">{r.name}</span>
+@@ -51,7 +61,7 @@ export default function Races({ races, costs, loading, onAdd, onEdit, onChanged
+                   {[r.type, r.date ? formatShortDate(r.date) : "No date", `${mine.length} cost${mine.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
+                 </span>
+               </div>
+-              <div className="txn-row__actions">
++              <div className="race-actions">
+                 <button className="icon-btn" onClick={() => onEdit(r)} aria-label={`Edit ${r.name}`}>
+                   ✎
+                 </button>
+@@ -88,6 +98,10 @@ export default function Races({ races, costs, loading, onAdd, onEdit, onChanged
+           </section>
+         );
+       })}
++
++      {detailId !== null && races.some((r) => r.id === detailId) && (
++        <RaceDetails race={races.find((r) => r.id === detailId)} costs={costs} onClose={() => setDetailId(null)} />
++      )}
+     </div>
+   );
+ }
+diff --git a/frontend-race/src/race.css b/frontend-race/src/race.css
+index 9d6e8de..995124f 100755
+--- a/frontend-race/src/race.css
++++ b/frontend-race/src/race.css
+@@ -122,3 +122,37 @@
+   color: var(--income);
+   background: var(--income-dim);
+ }
++
++/* Races tab: the Mini Budget row actions only appear on hover at desktop
++   widths, and race cards aren't rows, so they get always-visible actions. */
++.race-actions {
++  display: flex;
++  gap: 4px;
++  flex-shrink: 0;
++}
++.race-card {
++  cursor: pointer;
++}
++.race-card:hover {
++  border-color: var(--text-faint);
++}
++
++/* Race details pop-out */
++.race-detail__meta {
++  margin: -6px 0 12px;
++}
++.race-detail__title {
++  margin: 18px 0 0;
++}
++.race-detail__list {
++  margin-top: 4px;
++}
++.race-detail__total {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  margin-top: 8px;
++  padding-top: 12px;
++  border-top: 1px solid var(--border);
++  font-weight: 600;
++}
