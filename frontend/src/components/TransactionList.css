@@ -1,0 +1,143 @@
+.txn-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.txn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+.txn-row:last-child {
+  border-bottom: none;
+}
+
+.txn-row__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.txn-row__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.txn-row__icon--income {
+  background: var(--income-dim);
+  color: var(--income);
+}
+.txn-row__icon--expense {
+  background: var(--expense-dim);
+  color: var(--expense);
+}
+
+.txn-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.txn-row__name {
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.txn-row__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.receipt-link {
+  margin-left: 4px;
+  text-decoration: none;
+  filter: grayscale(0.3);
+}
+.receipt-link:hover {
+  filter: none;
+}
+
+.tag--recurring {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--stamp);
+  background: var(--stamp-dim);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.txn-row__end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.txn-row__amount {
+  font-size: 14px;
+  font-weight: 600;
+}
+.txn-row__amount--income {
+  color: var(--income);
+}
+.txn-row__amount--expense {
+  color: var(--expense);
+}
+
+.txn-row__actions {
+  display: none;
+  gap: 4px;
+}
+.txn-row:hover .txn-row__actions,
+.txn-row:focus-within .txn-row__actions {
+  display: flex;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn--danger:hover {
+  color: var(--expense);
+  border-color: rgba(234, 90, 95, 0.4);
+}
+
+.txn-row__hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  max-width: 90px;
+  text-align: right;
+}
+
+@media (max-width: 859px) {
+  .txn-row__actions {
+    display: flex;
+  }
+}

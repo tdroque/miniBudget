@@ -1,0 +1,63 @@
+.import-export-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.import-export-actions__file {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.import-export-actions__file.is-disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.import-result {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.import-result--ok {
+  background: var(--income-dim);
+  border: 1px solid rgba(62, 214, 142, 0.3);
+  color: var(--income);
+}
+.import-result--warn {
+  background: var(--stamp-dim);
+  border: 1px solid rgba(224, 171, 75, 0.35);
+  color: var(--stamp);
+}
+.import-result__summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.import-result__summary p {
+  color: var(--text);
+}
+.import-result__summary strong {
+  color: inherit;
+}
+
+.import-result__skipped {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.import-result__skipped li {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  padding: 6px 8px;
+  background: var(--surface-raised);
+  border-radius: 6px;
+}
