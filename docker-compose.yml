@@ -10,6 +10,9 @@ services:
       # - OCR_PROVIDER=tesseract   # tesseract | none
       # - OCR_LANG=eng             # tesseract language pack, e.g. "eng+fra"
       # - OCR_MAX_CONCURRENT=2     # how many receipts to process at once
+      # Race Budget: miniBudget expense category used when a race cost is
+      # sent over (created automatically on first use).
+      # - RACE_BUDGET_CATEGORY=Races
     volumes:
       - spend-data:/data
     expose:
@@ -22,6 +25,15 @@ services:
       - backend
     ports:
       - "8081:80"
+
+  # Race Budget: a second frontend on the same backend and database.
+  frontend-race:
+    build: ./frontend-race
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8082:80"
 
 volumes:
   spend-data:

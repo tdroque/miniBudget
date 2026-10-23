@@ -166,6 +166,22 @@ A few things worth knowing:
 - **Turning it off:** set `OCR_PROVIDER=none` (see `docker-compose.yml`) if you'd rather not run OCR at all. Receipts still upload and display normally; they just stay at `ocr_status: "pending"` forever, same as if no worker existed.
 - **Swapping in a better engine later:** OCR is implemented behind a small Go interface (`OCRProvider` in `backend/ocr.go`) specifically so a cloud vision API or a multimodal LLM can be dropped in later without touching the upload flow, the queue, the schema, or the frontend — only `newOCRProvider()` would need a new case. Worth knowing if Tesseract's accuracy isn't cutting it: paid options are meaningfully better at this specific task.
 
+## Race Budget (companion app)
+
+A second frontend on the **same backend and database** for planning what races cost (ultras, triathlons, anything with an entry fee and a road trip). Same ideas as Mini Budget, applied to a race instead of a month: one bar, per-category limits, a managed category list, offline support, CSV import/export.
+
+Open **http://localhost:8082** (it starts with `docker compose up --build`, alongside Mini Budget on 8081). The code is in `frontend-race/`; it reuses Mini Budget's styles, offline sync engine, PWA setup and settings screens.
+
+- **Races** have a date and a total budget. **Costs** (gas, flights, entry fee, food, whatever) belong to a race and are either **planned** or **paid**. The bar shows paid (solid), still-planned (hatched) and anything over budget. **Limits** cap a category per race, same colours as Mini Budget's Budget tab (amber past 80%, red when over).
+- **Race costs don't show up in Mini Budget** on their own. They live in their own tables (`races`, `race_costs`, `race_limits`, `race_categories`).
+- **One click sends a cost to Mini Budget** (`+ Mini Budget` on a cost). That marks it paid and creates a normal expense under the category `Races` (override with `RACE_BUDGET_CATEGORY` on the backend), with the description `Race: <name>`. The two stay linked:
+  - editing the cost in Race Budget (amount, name, date, note) updates the Mini Budget entry; renaming the race updates its description;
+  - deleting the cost, or the race, deletes the Mini Budget entry;
+  - the undo button on a linked cost removes the entry from Mini Budget and keeps the cost as a plain paid cost;
+  - deleting the entry from Mini Budget just unlinks the cost.
+  - Sync is one way: editing the entry inside Mini Budget does **not** change the race cost.
+- Sending to Mini Budget needs a connection (like receipts). Everything else works offline and syncs later; a race created offline can already hold costs and limits.
+
 ## API
 
 All endpoints are under `/api`:
@@ -194,6 +210,22 @@ All endpoints are under `/api`:
 | POST | `/budgets` | Create a budget (`{category, amount}`) — 409 if that category already has one |
 | PUT | `/budgets/:id` | Update a budget's amount (and/or category, though the UI doesn't offer changing it — see Budget tab above) |
 | DELETE | `/budgets/:id` | Delete a budget |
+
+Race Budget endpoints (all under `/api`, used by `frontend-race/`):
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/race-sync` | Snapshot of races, costs, limits, race categories (+ the Mini Budget category name) — used for the main load and the offline cache |
+| GET / POST | `/races` | List / create a race (`{name, type, date, budget}`) |
+| PUT / DELETE | `/races/:id` | Update / delete a race (deletes its costs and limits, and any Mini Budget entries they were sent to) |
+| GET / POST | `/race-costs` | List (optionally `?race_id=`) / create a cost (`{race_id, name, amount, category, date, status, note}`) |
+| PUT / DELETE | `/race-costs/:id` | Update / delete a cost (mirrored to its Mini Budget entry if linked) |
+| POST | `/race-costs/:id/budget` | Send a cost to Mini Budget: marks it paid, creates and links the expense. Calling it again is a no-op |
+| DELETE | `/race-costs/:id/budget` | Undo: delete the Mini Budget entry and unlink the cost |
+| GET / POST | `/race-limits` | List / create a per-race category limit (`{race_id, category, amount}`) — 409 if that race already has one for the category |
+| PUT / DELETE | `/race-limits/:id` | Update the amount / delete |
+| GET / POST | `/race-categories` | List / add a race category (`{name}`) |
+| DELETE | `/race-categories/:id` | Delete a race category (past costs keep theirs) |
 
 Uploaded receipt images are served back at `/uploads/<filename>` (not under `/api`), proxied by nginx in production and by Vite's dev server locally.
 

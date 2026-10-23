@@ -91,6 +91,9 @@ func openDB(path string) *sql.DB {
 
 	migrateColumns(db)
 	seedCategories(db)
+	if err := migrateRaceSchema(db); err != nil {
+		log.Fatalf("failed to migrate race budget schema: %v", err)
+	}
 
 	return db
 }

@@ -1,0 +1,100 @@
+/* Race Budget additions on top of the Mini Budget styles copied alongside. */
+
+.scope-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scope-bar select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  font-size: 14px;
+}
+
+/* Planned (not yet paid) segment of the bar: same hue as spent, lighter. */
+.balance-bar__planned {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(135deg, rgba(234, 90, 95, 0.4), rgba(234, 90, 95, 0.4) 5px, rgba(234, 90, 95, 0.18) 5px, rgba(234, 90, 95, 0.18) 10px);
+  transition: width 0.3s ease, left 0.3s ease;
+}
+.balance-bar__track--compact {
+  height: 14px;
+  border-radius: 7px;
+  margin: 10px 0 6px;
+}
+
+.race-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 12px;
+}
+.race-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.race-stats .mono {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.txn-row--wrap {
+  flex-wrap: wrap;
+}
+.txn-row__end {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cost-check {
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--bg);
+  cursor: pointer;
+}
+.cost-check.is-paid {
+  background: var(--income);
+  border-color: var(--income);
+}
+.cost-check:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.cost-send {
+  white-space: nowrap;
+  font-size: 11.5px;
+  padding: 4px 8px;
+}
+
+.cost-confirm {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--expense-dim);
+  color: var(--expense);
+  font-size: 12.5px;
+}
+.cost-confirm span {
+  flex: 1;
+  min-width: 160px;
+}
+
+.tag--planned {
+  color: var(--stamp);
+  background: var(--stamp-dim);
+}
+.tag--budget {
+  color: var(--income);
+  background: var(--income-dim);
+}

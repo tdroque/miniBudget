@@ -47,7 +47,7 @@ func main() {
 	db := openDB(dbPath)
 	defer db.Close()
 
-	a := &api{db: db, receiptsDir: receiptsDir}
+	a := &api{db: db, receiptsDir: receiptsDir, raceBudgetCategory: envOr("RACE_BUDGET_CATEGORY", "Races")}
 
 	// OCR is best-effort and never fatal to start up: if the provider can't
 	// be created (e.g. OCR_PROVIDER=tesseract but the binary isn't
@@ -109,6 +109,27 @@ func main() {
 
 	// Offline bootstrap snapshot
 	mux.HandleFunc("GET /api/sync", a.handleSync)
+
+	// Race Budget (companion app, same database). Race costs stay out of the
+	// miniBudget views until one is pushed with /api/race-costs/{id}/budget.
+	mux.HandleFunc("GET /api/races", a.listRaces)
+	mux.HandleFunc("POST /api/races", a.createRace)
+	mux.HandleFunc("PUT /api/races/{id}", a.updateRace)
+	mux.HandleFunc("DELETE /api/races/{id}", a.deleteRace)
+	mux.HandleFunc("GET /api/race-costs", a.listRaceCosts)
+	mux.HandleFunc("POST /api/race-costs", a.createRaceCost)
+	mux.HandleFunc("PUT /api/race-costs/{id}", a.updateRaceCost)
+	mux.HandleFunc("DELETE /api/race-costs/{id}", a.deleteRaceCost)
+	mux.HandleFunc("POST /api/race-costs/{id}/budget", a.addCostToBudget)
+	mux.HandleFunc("DELETE /api/race-costs/{id}/budget", a.removeCostFromBudget)
+	mux.HandleFunc("GET /api/race-limits", a.listRaceLimits)
+	mux.HandleFunc("POST /api/race-limits", a.createRaceLimit)
+	mux.HandleFunc("PUT /api/race-limits/{id}", a.updateRaceLimit)
+	mux.HandleFunc("DELETE /api/race-limits/{id}", a.deleteRaceLimit)
+	mux.HandleFunc("GET /api/race-categories", a.listRaceCategories)
+	mux.HandleFunc("POST /api/race-categories", a.createRaceCategory)
+	mux.HandleFunc("DELETE /api/race-categories/{id}", a.deleteRaceCategory)
+	mux.HandleFunc("GET /api/race-sync", a.handleRaceSync)
 
 	// Uploaded receipt images
 	fileServer := http.FileServer(http.Dir(receiptsDir))

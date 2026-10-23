@@ -19,6 +19,10 @@ type api struct {
 	db          *sql.DB
 	receiptsDir string
 	ocrQueue    *ocrQueue // nil when OCR is disabled (OCR_PROVIDER=none, or the provider failed to initialize)
+
+	// Category used for miniBudget transactions created from Race Budget
+	// (see races.go). Auto-created as an expense category on first use.
+	raceBudgetCategory string
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
